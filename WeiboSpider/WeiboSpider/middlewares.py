@@ -2,11 +2,15 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import json
+import  logging
+from datetime import datetime
 
 from scrapy import signals
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
+from scrapy.downloadermiddlewares.retry import RetryMiddleware
 
 
 class WeibospiderSpiderMiddleware:
@@ -101,3 +105,31 @@ class WeibospiderDownloaderMiddleware:
 
     def spider_opened(self, spider):
         spider.logger.info("Spider opened: %s" % spider.name)
+
+class ErrorLoggerMiddleware(RetryMiddleware):
+    def process_response(self, request, response, spider):
+        # 处理非200状态码
+        if response.status not in [200, 301, 302]:
+            reason = f"HTTP Error {response.status}"
+            self._log_error(request, response, reason, spider)
+            return self._retry(request, reason, spider) or response
+        return response
+
+    def process_exception(self, request, exception, spider):
+        # 处理网络异常
+        self._log_error(request, None, str(exception), spider)
+        return self._retry(request, str(exception), spider)
+
+    def _log_error(self, request, response, reason, spider):
+        """统一记录错误日志"""
+        error_data = {
+            "url": request.url,
+            "timestamp": datetime.now().isoformat(),
+            "error_reason": reason,
+            "response_body": response.text[:1000] if response else None,
+            "meta_data": request.meta
+        }
+        spider.logger.error(f"Request Failed: {error_data}")
+        # 将错误数据写入文件（追加模式）
+        with open("error_logs.jsonl", "a") as f:
+            f.write(json.dumps(error_data) + "\n")

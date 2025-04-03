@@ -14,7 +14,7 @@ from scrapy.utils.project import get_project_settings
 import scrapy
 import requests
 import pymysql
-from sqlobject import *
+# from sqlobject import *
 from scrapy.pipelines.images import ImagesPipeline
 
 from py2neo import Graph, Subgraph, NodeMatcher
@@ -30,7 +30,7 @@ class WeibospiderPipeline(object):
     def open_spider(self, spider):
         # 连接数据库
         # graph = Graph('http://localhost:7474', username='neo4j', password='123456') # 旧版本
-        self.graph = Graph('bolt://localhost:7687', auth=('neo4j', '12345678'))
+        self.graph = Graph('bolt://localhost:7687', auth=('neo4j', '123456'))
 
         # 删除所有已有节点
         self.graph.delete_all()

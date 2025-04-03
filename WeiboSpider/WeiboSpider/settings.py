@@ -9,8 +9,8 @@
 
 BOT_NAME = "WeiboSpider"
 
-SPIDER_MODULES = ["WeiboSpider.WeiboSpider.spiders"]
-NEWSPIDER_MODULE = "WeiboSpider.WeiboSpider.spiders"
+SPIDER_MODULES = ["WeiboSpider.spiders"]
+NEWSPIDER_MODULE = "WeiboSpider.spiders"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
@@ -21,10 +21,17 @@ ROBOTSTXT_OBEY = False
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # CONCURRENT_REQUESTS = 32
 
+
+# 基础重试配置
+RETRY_ENABLED = True  # 启用重试
+RETRY_TIMES = 3       # 最大重试次数（默认2次）
+RETRY_HTTP_CODES = [500, 502, 503, 504, 404, 403]  # 需要重试的HTTP状态码
+RETRY_PRIORITY_ADJUST = +1  # 每次重试优先级调整（避免重复请求阻塞队列）
+
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-# DOWNLOAD_DELAY = 3
+DOWNLOAD_DELAY = 3
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
@@ -54,9 +61,11 @@ DEFAULT_REQUEST_HEADERS = {'authority': 'weibo.com',
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-# DOWNLOADER_MIDDLEWARES = {
-#    "WeiboSpider.middlewares.WeibospiderDownloaderMiddleware": 543,
-# }
+DOWNLOADER_MIDDLEWARES = {
+
+    "WeiboSpider.middlewares.ErrorLoggerMiddleware": 545,
+   "WeiboSpider.middlewares.WeibospiderDownloaderMiddleware": 543,
+}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -67,7 +76,7 @@ DEFAULT_REQUEST_HEADERS = {'authority': 'weibo.com',
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    "WeiboSpider.WeiboSpider.pipelines.WeibospiderPipeline": 200,
+    "WeiboSpider.pipelines.WeibospiderPipeline": 200,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

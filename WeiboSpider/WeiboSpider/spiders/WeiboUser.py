@@ -1,6 +1,7 @@
 import json
 import os.path
 import time
+from datetime import datetime
 
 import scrapy
 from scrapy_redis.spiders import RedisSpider
@@ -13,9 +14,11 @@ import copy
 
 
 class WeiboSpider(RedisSpider):
+
+
     name = "WeiboUser"
     # allowed_domains = ["weibo.com"]
-    url_sample = "https://m.weibo.cn/c/fans/followers?page={}&uid={}&cursor=-1&count=100"
+    url_sample = "https://m.weibo.cn/c/fans/followers?page={}&uid={}&cursor=-1&count=20"
     current_page = 1
     user_id = 6593199887
     redis_key = 'db:start_urls'
@@ -34,81 +37,67 @@ class WeiboSpider(RedisSpider):
 
     def start_requests(self):
         yield scrapy.Request(url=self.url_sample.format(1, self.user_id), callback=self.parse,
-                             meta={'page': 1, 'domain': self.user_id})
+                             meta={'page': 1, 'domain': self.user_id},priority=1)
 
     def parse(self, response):
-
-        if response.status != 200:
+        datas={'ok' : 0}
+        try:
+            datas = json.loads(response.text)
+        except Exception:
             with open("err_log.txt", 'a') as err:
-                err.write(response.status + ":\n" + response.text)
-            time.sleep(2)
-            yield scrapy.Request(url=self.url_sample.format(response.meta['page'], response.meta['domain']),
-                                 meta={'page': response.meta['page'], 'domain': response.meta['domain']},
-                                 callback=self.parse, dont_filter=True)
+                err.write(str(response.status) + ":\n" + response.text)
+        if datas['ok'] != 1:
+            with open("err_log.txt", 'a') as err:
+                err.write(str(response.status) + ":\n" + response.text)
         else:
+            users:list
+            # 获取到数据
             try:
-                datas = json.loads(response.text)
+                users = datas['data']['list']['users']
             except Exception:
                 with open("err_log.txt", 'a') as err:
-                    err.write(response.status + ":\n" + response.text)
-            if datas['ok'] != 1:
-                with open("err_log.txt", 'a') as err:
-                    err.write(response.status + ":\n" + response.text)
-            else:
-                # 获取到数据
-                list
-                try:
-                    users: list = datas['data']['list']['users']
-                except Exception:
-                    with open("err_log.txt", 'a') as err:
-                        err.write(response.status + ":\n" + response.text)
-                next_page = True
-                if users:
-                    for d in users:
+                    err.write(str(response.status) + ":\n" + response.text)
 
-                        if d['followers_count'] >= 10000000:
-                            item = WeibospiderUserItem()
-                            item['domain'] = response.meta['domain']
-                            item['id'] = d['id']
-                            item['name'] = d['name']
-                            item['gender'] = d['gender']
-                            item['followers_count'] = d['followers_count']
-                            item['province'] = d['province']
-                            item['city'] = d['city']
-                            item['location'] = d['location']
-                            item['description'] = d['description']
-                            item['created_at'] = d['created_at']
-                            item['avatar_img'] = d['avatar_hd']
+            #检测第一页粉丝数是否小于阈值的flag
+            next_page = True
+            if users:
+                for d in users:
 
-                            # self.q.append(d['id'])
+                    if d['followers_count'] >= 10000000:
+                        item = WeibospiderUserItem()
+                        item['domain'] = response.meta['domain']
+                        item['id'] = d['id']
+                        item['name'] = d['name']
+                        item['gender'] = d['gender']
+                        item['followers_count'] = d['followers_count']
+                        item['province'] = d['province']
+                        item['city'] = d['city']
+                        item['location'] = d['location']
+                        item['description'] = d['description']
+                        item['created_at'] = d['created_at']
+                        item['avatar_img'] = d['avatar_hd']
 
-                            yield item
-                            # if not test_available(d['id']):
-                            #     print("我将关注\n\n\n")
-                            # subscribe_one(d['id'])
+                        # self.q.append(d['id'])
 
-                            with open("scrapy_log.txt", 'a') as log:
-                                log.write("将`" + item['name'] + "`的第1页加入队列(粉丝数:"+ str(item['followers_count']) + ")\n")
-                            yield scrapy.Request(url=self.url_sample.format(1, d['id']),
-                                                 meta={'page': 1, 'domain': d['id']},
-                                                 callback=self.parse)
-                        else:
-                            next_page = False
-                            break
-                    # yield scrapy.Request(url=self.url_sample.format(1,
-                # self.current_page += 1
-                if next_page:
-                    with open("scrapy_log.txt", 'a',encoding='utf-8') as log:
-                        log.write("将下一页(第" + response.meta['page'] + 1 + "页)加入队列\n")
-                    yield scrapy.Request(url=self.url_sample.format(response.meta['page'] + 1, response.meta['domain']),
-                                         meta={'page': response.meta['page'] + 1, 'domain': response.meta['domain']},
-                                         callback=self.parse)
+                        yield item
+                        # if not test_available(d['id']):
+                        #     print("我将关注\n\n\n")
+                        # subscribe_one(d['id'])
 
-            # else:
-            #     if self.q:
-            #         self.user_id = self.q.popleft()
-            #         yield scrapy.Request(url=self.url_sample.format(1, self.user_id),
-            #                              callback=self.parse)
-        # else:
-        #     yield scrapy.Request(url=self.url_sample.format(1, id),
-        #                          callback=self.parse, dont_filter=True)
+                        with open("scrapy_log.txt", 'a') as log:
+                            log.write("将`" + item['name'] + "`的第1页加入队列(粉丝数:"+ str(item['followers_count']) + ")\n")
+                        yield scrapy.Request(url=self.url_sample.format(1, d['id']),
+                                             meta={'page': 1, 'domain': d['id']},
+                                             callback=self.parse, priority=1)
+                    else:
+                        next_page = False
+                        break
+                # yield scrapy.Request(url=self.url_sample.format(1,
+            # self.current_page += 1
+            if next_page:
+                with open("scrapy_log.txt", 'a') as log:
+                    log.write("将下一页(第" + str(response.meta['page'] + 1) + "页)加入队列\n")
+                yield scrapy.Request(url=self.url_sample.format(response.meta['page'] + 1, response.meta['domain']),
+                                     meta={'page': response.meta['page'] + 1, 'domain': response.meta['domain']},
+                                     callback=self.parse,priority=response.meta['page'] + 1)
+
