@@ -22,8 +22,6 @@ from py2neo import Node, Relationship, Path
 
 
 class WeibospiderPipeline(object):
-    db = None
-    cursor = None
 
     graph = None
 

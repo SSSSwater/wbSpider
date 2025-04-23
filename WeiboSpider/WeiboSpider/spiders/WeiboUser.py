@@ -70,8 +70,8 @@ class WeiboSpider(RedisSpider):
                         item['name'] = d['name']
                         item['gender'] = d['gender']
                         item['followers_count'] = d['followers_count']
-                        item['province'] = d['province']
-                        item['city'] = d['city']
+                        item['province'] = int(d['province'])
+                        item['city'] = int(d['city'])
                         item['location'] = d['location']
                         item['description'] = d['description']
                         item['created_at'] = d['created_at']

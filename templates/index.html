@@ -1,23 +1,152 @@
-<!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>主页</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename = 'css/bootstrap/bootstrap.min.css') }}">
+    <script src="{{ url_for('static', filename = 'js/bootstrap/bootstrap.bundle.min.js') }}"></script>
+    <!--    引入vue-->
+    <script src="{{ url_for('static', filename = 'js/vue.js') }}"></script>
+    <!--    引入element组件库 -->
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <!--    引入element样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/MyCSS.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'swiper/swiper-bundle.min.css') }}">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style type="text/css">
+        .swiper {
+            width: 70%;
+            height: 70%;
+        }
+    </style>
+
 </head>
-<body>
-<div class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-  <form class="bg-white p-6 rounded shadow-md w-full max-w-sm">
-    <div class="mb-4">
-      <label for="input-field" class="block text-gray-700 text-sm font-bold mb-2">Input:</label>
-      <input id="input-field" type="text" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Enter text">
-    </div>
-    <div class="flex items-center justify-between">
-      <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-        Submit
-      </button>
-    </div>
-  </form>
+
+
+<body id="top" style="font-family: '等线'">
+<div id="index" class="container">
+    <header
+            class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-between py-3 mb-4 border-bottom">
+
+
+        <img style="width: 20%; float: left;margin-left: 10%;" src="img\logo.png">
+        <h1 class="top-text">web期末大作业</h1>
+        <ul class="nav col-12 col-md-auto mb-2 justify-content-center mb-md-0" style="margin-top: 1%;">
+            <li><a class="nav-link px-2 link-dark nav-text" href="index.html">首页</a></li>
+            <li><a class="nav-link px-2 link-dark nav-text" href="intro.html">家乡特色</a></li>
+            <li><a class="nav-link px-2 link-dark nav-text" :href="bioLocate">{{bioLabel}}</a></li>
+            <li style="margin-left: 10px"><el-avatar :src="bioAvatar"></el-avatar></li>
+            <li style="margin-left: 10px"><el-button type="text" v-if="isLogin" @click="logout">退出登录</el-button></li>
+        </ul>
+    </header>
 </div>
+<div class="container">
+    <div class="swiper">
+        <div class="swiper-wrapper">
+            <div class="swiper-slide">
+                <div class="container" style="width: 80%;">
+                    <img src="img/indeximg.jpeg" width="100%">
+                </div>
+            </div>
+            <div class="swiper-slide">
+                <div class="container" style="width: 80%;">
+                    <img src="img/indeximg2.jpeg" width="100%">
+                </div>
+            </div>
+            <div class="swiper-slide">
+                <div class="container" style="width: 80%;">
+                    <img src="img/indeximg3.jpeg" width="100%">
+                </div>
+            </div>
+        </div>
+        <!-- 如果需要分页器 -->
+        <div class="swiper-pagination"></div>
+
+        <!-- 如果需要导航按钮 -->
+        <div class="swiper-button-prev"></div>
+        <div class="swiper-button-next"></div>
+
+    </div>
+</div>
+
+
+<script type="text/javascript" src="swiper/swiper-bundle.min.js"></script>
+<script type="text/javascript">
+    function getCookie(cname) {
+        var name = cname + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i].trim();
+            if (c.indexOf(name) == 0) return c.substring(name.length, c.length);
+        }
+        return null;
+    }
+    window.onload=function () {
+        let cookieId=getCookie("user");
+        if (cookieId != null) {
+            axios({
+                url: '/bio',
+                method: 'GET',
+                params: {
+                    id: cookieId
+                }
+            }).then(function (res) {
+
+                index.bioLabel = res.data.userName+"的个人主页";
+                index.bioLocate = "bio.html";
+                index.isLogin=true;
+                index.bioAvatar=res.data.userAvatar;
+            })
+        }else{
+            index.bioLabel = "登录";
+        }
+    }
+    var index = new Vue({
+        el: '#index',
+        data() {
+            return {
+                bioLabel:'',
+                bioLocate:'login.html',
+                isLogin:false,
+                bioAvatar:''
+            }
+        },
+        methods: {
+            logout() {
+                document.cookie = "user=0;path=/;max-age=0";
+                index.$message.success("退出成功!正在返回登录界面...");
+                setTimeout(function () {
+                    window.location.href="login.html";
+                }, 1000);
+
+            }
+        }
+    });
+    var mySwiper = new Swiper('.swiper', {
+        // 滚动方向 horizontal/vertical
+        direction: 'horizontal',
+        // 自动播放
+        autoplay: {
+            delay: 2000,
+            stopOnLastSlide: false,
+        },
+        // 是否循环播放
+        loop: true,
+        // 是否需要分页器
+        pagination: {
+            el: '.swiper-pagination',
+        },
+
+        effect: 'slide',
+        // 如果需要前进后退按钮
+        navigation: {
+            nextEl: '.swiper-button-next',
+            prevEl: '.swiper-button-prev',
+        },
+    })
+</script>
 </body>
+
 </html>

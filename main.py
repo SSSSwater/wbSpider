@@ -1,16 +1,30 @@
-# 这是一个示例 Python 脚本。
+import py2neo
+from py2neo import Graph, Subgraph, NodeMatcher
+from py2neo import Node, Relationship, Path
 
-# 按 Shift+F10 执行或将其替换为您的代码。
-# 按 双击 Shift 在所有地方搜索类、文件、工具窗口、操作和设置。
 
-
-def print_hi(name):
-    # 在下面的代码行中使用断点来调试脚本。
-    print(f'Hi, {name}')  # 按 Ctrl+F8 切换断点。
 
 
 # 按间距中的绿色按钮以运行脚本。
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    graph = Graph('bolt://localhost:7687', auth=('neo4j', '123456'))
+    nodes = NodeMatcher(graph)
+    res = graph.run("""MATCH (u:User {id: 1640601392})
+MATCH (candidate:User)
+WHERE candidate <> u AND NOT (u)-[:关注]->(candidate)
+WITH u, candidate
 
-# 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
+OPTIONAL MATCH (u)-[:关注]->(followed:User)-[:关注]->(candidate)
+WITH u, candidate, COUNT(followed) AS common_followers
+
+WITH u, candidate, common_followers,
+     CASE WHEN candidate.province = u.province THEN 10 ELSE 0 END AS province_score,
+     candidate.followers_count AS followers
+     
+WITH candidate,
+     (common_followers * 5) + province_score + (followers / 10000000) AS total_score
+ORDER BY total_score DESC
+RETURN candidate,total_score
+LIMIT 100""")
+    print(res)
+

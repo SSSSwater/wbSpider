@@ -1,0 +1,416 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>杭州特色</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename = 'css/bootstrap/bootstrap.min.css') }}">
+    <script src="{{ url_for('static', filename = 'js/bootstrap/bootstrap.bundle.min.js') }}"></script>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/MyCSS.css') }}">
+    <!--    引入vue-->
+    <script src="{{ url_for('static', filename = 'js/vue.js') }}"></script>
+    <!--    引入element组件库 -->
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <!--    引入element样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<style>
+
+    .el-textarea__inner{
+        font-size: 17px;
+        height: 150px;
+        resize: none;
+    }
+    .el-descriptions__title{
+        font-size: 30px;
+    }
+    .desFont{
+        font-size: 17px;
+    }
+    .desLabel{
+        width: 100px;
+        height: 50px;
+        font-size: 20px;
+    }
+    .avatar-uploader .el-upload {
+        border: 1px dashed #d9d9d9;
+        border-radius: 6px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .avatar-uploader .el-upload:hover {
+        border-color: #409EFF;
+    }
+
+    .avatar-uploader-icon {
+        font-size: 28px;
+        color: #8c939d;
+        width: 150px;
+        height: 150px;
+        line-height: 150px;
+        text-align: center;
+    }
+
+    .avatar {
+        width: 150px;
+        height: 150px;
+        display: block;
+    }
+</style>
+<body id="top" style="
+        font-family: '等线';">
+<div id="intro">
+    <div class="container">
+        <header
+                class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-between py-3 mb-4 border-bottom">
+
+
+            <img style="width: 20%; float: left;margin-left: 10%;" src="img\logo.png">
+            <h1 class="top-text">web期末大作业</h1>
+            <ul class="nav col-12 col-md-auto mb-2 justify-content-center mb-md-0" style="margin-top: 1%;">
+                <li><a class="nav-link px-2 link-dark nav-text" href="index.html">首页</a></li>
+                <li><a class="nav-link px-2 link-dark nav-text" href="intro.html">家乡特色</a></li>
+                <li><a class="nav-link px-2 link-dark nav-text" :href="bioLocate">{{bioLabel}}</a></li>
+                <li style="margin-left: 10px"><el-avatar :src="bioAvatar"></el-avatar></li>
+                <li style="margin-left: 10px"><el-button type="text" v-if="isLogin" @click="logout">退出登录</el-button></li>
+            </ul>
+        </header>
+    </div>
+    <div class="container">
+        <el-row class="tac">
+            <el-col :span="6">
+                <div style="height: 70%;overflow: auto">
+                    <el-row>
+                        <el-col :span="9"><label style="font-size: 25px">杭州特色!</label></el-col>
+                        <el-col :span="15" type="text"><el-button @click="toCreate">新增条目</el-button></el-col>
+                    </el-row>
+                    <el-menu
+                            default-active=""
+                            @select="handleSelect"
+                            class="el-menu-vertical-demo">
+                        <el-submenu index="1">
+                            <template slot="title">
+                                <i class="el-icon-knife-fork"></i>
+                                <span>杭州美食</span>
+                            </template>
+                            <el-menu-item-group>
+                                <el-menu-item v-for="(food) in foods" :key="food.id" :index="food.id">{{food.name}}</el-menu-item>
+                            </el-menu-item-group>
+                        </el-submenu>
+                        <el-submenu index="2">
+                            <template slot="title">
+                                <i class="el-icon-position"></i>
+                                <span>杭州风景</span>
+                            </template>
+                            <el-menu-item-group>
+                                <el-menu-item v-for="(scene) in scenes" :key="scene.id" :index="scene.id">{{scene.name}}</el-menu-item>
+                            </el-menu-item-group>
+                        </el-submenu>
+                        <el-submenu index="3">
+                            <template slot="title">
+                                <i class="el-icon-collection"></i>
+                                <span>杭州文化</span>
+                            </template>
+                            <el-menu-item-group>
+                                <el-menu-item v-for="(culture) in cultures" :key="culture.id" :index="culture.id">{{culture.name}}</el-menu-item>
+                            </el-menu-item-group>
+                        </el-submenu>
+                    </el-menu>
+                </div>
+            </el-col>
+            <el-col :span="12">
+                <div v-if="isSelect" style="height: 70%;overflow: auto">
+                    <el-descriptions class="margin-top" :title="curName" :column="1" direction="vertical" label-class-name="desLabel" content-class-name="desFont">
+                        <template slot="extra">
+                            由{{curFromName}}创建该词条
+                            <el-button @click="modifyName" icon="el-icon-edit">修改名称</el-button>
+                            <el-button @click="deleteIntro" type="danger" v-if="isModify">删除条目</el-button>
+                            <el-button @click="submit" type="primary" v-if="isModify">保存</el-button>
+                            <el-button @click="cancel" v-if="isModify">取消</el-button>
+                            <el-button @click="modify" type="primary" v-else="isModify">修改信息</el-button>
+                        </template>
+                        <el-descriptions-item label="简要介绍">
+                            <el-input type="textarea" v-model="modifyForm.curDetail" v-if="isModify" maxlength="2333" show-word-limit></el-input>
+                            <span style="margin-left: 5px" v-else="isModify">{{curDetail}}</span>
+                        </el-descriptions-item>
+                        <el-descriptions-item label="历史背景">
+                            <el-input type="textarea" v-model="modifyForm.curHistory" v-if="isModify" maxlength="2333" show-word-limit></el-input>
+                            <span style="margin-left: 5px" v-else="isModify">{{curHistory}}</span>
+                        </el-descriptions-item>
+                    </el-descriptions>
+
+                </div>
+            </el-col>
+            <el-col :span="6">
+                <div class="container" style="height: 200px" v-if="isSelect">
+                    <el-image :src="curImg">
+                    </el-image>
+                </div>
+                <div v-if="isModify" class="container" style="margin-top: 20px">
+                    <el-tag type="success">上传图片</el-tag>
+                    <el-upload
+                            class="avatar-uploader"
+                            action="/intro/upImg"
+                            :show-file-list="false"
+                            accept=".jpg,.png"
+                            :on-success="handleAvatarSuccess"
+                            :before-upload="beforeAvatarUpload">
+                        <img v-if="imageUrl" :src="imageUrl" class="avatar">
+                        <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+                    </el-upload>
+                </div>
+            </el-col>
+        </el-row>
+    </div>
+</div>
+
+</body>
+</html>
+<script>
+
+    function getCookie(cname) {
+        var name = cname + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i].trim();
+            if (c.indexOf(name) == 0) return c.substring(name.length, c.length);
+        }
+        return null;
+    }
+    window.onload=function (){
+        let cookieId=getCookie("user");
+        if(cookieId!=null){
+            axios({
+                url: '/bio',
+                method: 'GET',
+                params: {
+                    id: cookieId
+                }
+            }).then(function (res) {
+
+                intro.bioLabel = res.data.userName+"的个人主页";
+                intro.bioLocate = "bio.html";
+                intro.isLogin=true;
+                intro.bioAvatar=res.data.userAvatar;
+            })
+        }else{
+            intro.bioLabel = "登录";
+        }
+
+        axios({
+            url: '/intro',
+            method: 'GET',
+            params: {
+
+            }
+        }).then(function (res) {
+
+            console.log(res);
+            let tFoods=res.data.foods;
+            for(i=0;i<tFoods.length;i++){
+                intro.foods.push({
+                    id:tFoods[i].key,
+                    index:"1-"+tFoods[i].key,
+                    name:tFoods[i].value
+                });
+            }
+            let tScenes=res.data.scenes;
+            for(i=0;i<tScenes.length;i++){
+                intro.scenes.push({
+                    id:tScenes[i].key,
+                    index:"1-"+tScenes[i].key,
+                    name:tScenes[i].value
+                });
+            }
+            let tCultures=res.data.cultures;
+            for(i=0;i<tCultures.length;i++){
+                intro.cultures.push({
+                    id:tCultures[i].key,
+                    index:"1-"+tCultures[i].key,
+                    name:tCultures[i].value
+                });
+            }
+            console.log(intro.cultures)
+        })
+    };
+    var intro = new Vue({
+            el: '#intro',
+            data() {
+                return {
+                    bioLabel:'',
+                    bioLocate:'login.html',
+                    bioAvatar:'',
+                    isLogin:false,
+                    isSelect:false,
+                    isModify:false,
+                    imageUrl:"",
+                    foods: [],
+                    scenes:[],
+                    cultures:[],
+                    curId:"",
+                    curName:"",
+                    curDetail:"",
+                    curImg:"",
+                    curHistory:"",
+                    curFromId:"",
+                    curFromName:"",
+                    modifyForm:{
+                        curName:"",
+                        curDetail:"",
+                        curImg:"",
+                        curHistory:""
+                    }
+                }
+            },
+            methods: {
+                handleAvatarSuccess(res, file) {
+                    this.imageUrl = URL.createObjectURL(file.raw);
+                    this.modifyForm.curImg=res;
+                    console.log(this.modifyForm.curImg)
+                },
+                beforeAvatarUpload(file) {
+                    //在头像上传之前需要做的判断，如判断文件格式
+                    const isJPG = file.type === 'image/jpeg';
+                    const isLt2M = file.size / 1024 / 1024 < 2;
+                },
+                modify() {
+                    this.isModify = true;
+                },
+                cancel() {
+                    this.isModify = false;
+                },
+                logout() {
+                    document.cookie = "user=0;path=/;max-age=0";
+                    intro.$message.success("退出成功!正在返回登录界面...");
+                    setTimeout(function () {
+                        window.location.href="login.html";
+                    }, 1000);
+
+                },
+                deleteIntro(){
+                    this.$confirm('此操作将永久删除该条目(真的很久!), 是否继续喵?', '提示', {
+                        confirmButtonText: '确认',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        axios({
+                            url: '/intro/delete',
+                            method: 'GET',
+                            params: {
+                                id: this.curId
+                            }
+                        }).then(function (res) {
+
+                            console.log(res);
+                            if(res.data==true){
+                                intro.$message.success("删除成功!");
+                                setTimeout(function (){
+                                    window.location.reload();
+                                }, 1000);
+                            }else{
+                                intro.$message.error("删除失败...");
+                            }
+                        })
+                    }).catch(() => {
+                        intro.$message.info('已取消删除');
+                    });
+
+                },
+                submit() {
+                    axios({
+                        url: '/intro/mod',
+                        method: 'GET',
+                        params: {
+                            id: this.curId,
+                            name: this.modifyForm.curName,
+                            detail: this.modifyForm.curDetail,
+                            img: this.modifyForm.curImg,
+                            history:this.modifyForm.curHistory
+                        }
+                    }).then(function (res) {
+
+                        if(res.data==true){
+                            intro.$message.success("修改成功!");
+                            setTimeout(function (){
+                                window.location.reload();
+                            }, 1000);
+                        }else{
+                            intro.$message.error("修改失败...");
+                        }
+                    })
+                },
+                handleSelect(key, keyPath) {
+                    console.log(keyPath);
+                    axios({
+                        url: '/intro/getDetail',
+                        method: 'GET',
+                        params: {
+                            id:keyPath[1]
+                        }
+                    }).then(function (res) {
+                        console.log(res)
+                        t = res.data;
+                        intro.curId=t.id;
+                        intro.curName=t.name;
+                        intro.curDetail=t.detail;
+                        intro.curImg=t.img;
+                        intro.curHistory=t.history;
+                        intro.modifyForm.curName=t.name;
+                        intro.modifyForm.curDetail=t.detail;
+                        intro.modifyForm.curImg=t.img;
+                        intro.modifyForm.curHistory=t.history;
+                        intro.curFromId=t.fromId;
+                        axios({
+                            url: '/bio',
+                            method: 'GET',
+                            params: {
+                                id: intro.curFromId
+                            }
+                        }).then(function (res) {
+
+                            intro.curFromName = res.data.userName;
+                        })
+                    })
+                    intro.isSelect=true;
+                },
+                modifyName() {
+                    this.$prompt('请输入新名字!', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        inputErrorMessage: '名字不符合要求'
+                    }).then(({value}) => {
+                        axios({
+                            url: '/intro/mod',
+                            method: 'GET',
+                            params: {
+                                id: this.curId,
+                                name: value,
+                                detail: this.curDetail,
+                                img: this.curImg,
+                                history: this.curHistory
+                            }
+                        }).then(function (res) {
+
+                            if (res.data == true) {
+                                intro.$message.success('你成功将' + intro.curName + '更改为:' + value);
+                                setTimeout(function () {
+                                    window.location.reload();
+                                }, 1000);
+                            } else {
+                                intro.$message.error("修改失败...");
+                            }
+                        })
+                    }).catch(() => {
+                        intro.$message.info('取消修改');
+                    });
+                },
+                toCreate() {
+                    window.location.href="createIntro.html";
+                }
+            }
+        })
+    ;
+</script>
