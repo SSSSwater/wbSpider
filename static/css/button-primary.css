@@ -1,0 +1,56 @@
+.button-dynamic{
+    border: 1px rgba(182, 221, 255,0.8) solid;
+    border-radius: 20px;
+    background-color: white;
+    transition: 0.25s;
+    width: 10vw;
+    text-align: center;
+}
+.button-dynamic:hover{
+    background-color: rgb(220, 234, 255);
+    transition: 0.25s;
+    width: 12vw;
+}
+.button-static-right{
+    border: 1px #0d6efd solid;
+    border-left-width: 0px;
+    border-radius:0px 20px 20px 0px;
+    background-color: white;
+    color: #0d6efd;
+    transition: 0.25s;
+    width: 5%;
+    font-size: 20px;
+    font-family: "等线";
+    text-align: center;
+}
+.button-static-right:hover{
+    background-color: rgb(220, 234, 255);
+    transition: 0.25s;
+    width: 7%;
+}
+.button-static-right:active{
+    background-color: rgb(220, 220, 220);
+    transition: 0.15s;
+}
+.button-nonborder{
+    border: 0px;
+    background-color: rgba(0,0,0,0);
+    color: darkgray;
+    transition: 0.5s;
+}
+.button-nonborder:hover{
+    color: dimgrey;
+    transition: 0.5s;
+}
+.textInput-dynamic-left{
+    border: 1px #0d6efd solid;
+    border-radius: 20px 0px 0px 20px;
+    padding-left: 1vw;
+    outline: none;
+    width: 45%;
+    transition: 0.3s;
+}
+.textInput-dynamic-left:focus{
+    width: 46%;
+    transition: 0.3s;
+}

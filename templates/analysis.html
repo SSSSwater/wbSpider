@@ -16,39 +16,46 @@
 </head>
 <style>
     .eheader{
-        line-height: 100px;
+        line-height: 200px;
     }
 </style>
 <body id="top" style="font-family: '等线'">
-<div id="anl">
-    <el-container>
-        <el-header class="eheader">
-            <header class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-between py-3 mb-4 border-bottom">
-                <h1 class="top-text">用户数据分析</h1>
-                <ul class="nav col-12 col-md-auto mb-2 justify-content-center mb-md-0" style="margin-top: 1%;">
-                    <li><a class="nav-link px-2 link-dark nav-text" href="index">首页</a></li>
-                    <li><a class="nav-link px-2 link-dark nav-text" href="intro">家乡特色</a></li>
-                    <li style="margin-left: 10px">
-                        <el-button type="text" v-if="isLogin" @click="logout">退出登录</el-button>
-                    </li>
-                </ul>
-            </header>
-        </el-header>
-        <el-main>
-            <div class="container">
-                <el-row class="tac">
-                    <el-col :span="6">
-                        <div style="background-color:blue;height: 70%;overflow: auto;">
-                            <el-row>
-                                <el-col :span="9"><label style="font-size: 25px">杭州特色!</label></el-col>
-                                <el-col :span="15" type="text"><el-button @click="toCreate">新增条目</el-button></el-col>
-                            </el-row>
-                        </div>
-                    </el-col>
-                </el-row>
-            </div>
-        </el-main>
-    </el-container>
+<div id="anl"  style="height: 1080px; width:1920px">
+    <div class="container">
+        <header
+                class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-between py-3 mb-4 border-bottom">
+
+
+            <img style="width: 20%; float: left;margin-left: 10%;" src="img\logo.png">
+            <h1 class="top-text">微博用户数据分析</h1>
+            <ul class="nav col-12 col-md-auto mb-2 justify-content-center mb-md-0" style="margin-top: 1%;">
+                <li><a class="nav-link px-2 link-dark nav-text" href="index.html">首页</a></li>
+                <li><a class="nav-link px-2 link-dark nav-text" href="analysis.html">数据分析</a></li>
+                <li><a class="nav-link px-2 link-dark nav-text" :href="bioLocate">{{bioLabel}}</a></li>
+                <li style="margin-left: 10px"><el-avatar :src="bioAvatar"></el-avatar></li>
+                <li style="margin-left: 10px"><el-button type="text" v-if="isLogin" @click="logout">退出登录</el-button></li>
+            </ul>
+        </header>
+    </div>
+    <div class="container" style="height: 80%;">
+        <el-row class="tac">
+            <el-col :span="6">
+                <div style="height: 70%;">
+                    <el-row :gutter="20">
+                        <el-col :span="18"><el-input v-model="input" placeholder="请输入要查询的账号uid"></el-input></el-col>
+                        <el-col :span="6" type="text"><el-button @click="toCreate">查询</el-button></el-col>
+                    </el-row>
+
+                </div>
+            </el-col>
+            <el-col :span="12">
+
+            </el-col>
+            <el-col :span="6">
+
+            </el-col>
+        </el-row>
+    </div>
     
     
 </div>
@@ -59,6 +66,7 @@
         data() {
             return {
                 isLogin:false,
+                input: '',
             }
         },
         methods: {

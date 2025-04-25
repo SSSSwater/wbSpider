@@ -1,0 +1,67 @@
+
+#top{
+    background-color: white;
+}
+.list-text {
+    font-family: '等线';
+    color:darkblue;
+    font-size: 20px;
+    margin: 10%;
+}
+.list-li {
+    color:darkblue;
+    font-size: 25px;
+    margin-top: 25%;
+    transition: 0.2s;
+}
+.list-li:hover {
+    color:black;
+    background-color: grey;
+    transition: 0.2s;
+}
+.introduce-text{
+    margin: 5%;
+    font-size: 20px;
+}
+.box{
+    font-family: '等线';
+    margin: 5%;
+    border: 1px solid darkgray;
+    border-radius: 5px;
+    background-color: lightcyan;
+    opacity: 95%;
+}
+.study-year{
+    color:darkgray;
+    font-size: 16px;
+    margin: 2%;
+}
+.study-text{
+    font-size: 20px;
+    margin: 2%;
+}
+.top-text{
+    margin-top: 2%;
+    font-size: 250%;
+    font-family: '等线';
+}
+.nav-text{
+    font-size: 120%;
+    font-family: '等线';
+    background-color: white;
+}
+.nav-text:hover{
+    background-color: lightgray;
+}
+.item-p{
+    font-size: 120%;
+    font-family: '等线';
+}
+.item-label{
+    font-size: 200%;
+    font-family: '等线';
+}
+.bottom-div{
+    font-size: 120%;
+    ont-family: '等线';
+}
