@@ -25,8 +25,10 @@ class NeoUtil:
             cls.graph.create(user)
         else:
             user = cls.nodes_matcher.match("User", id=item['id']).first()
-
+        print(user)
+        print(domain)
         user_to_domain = Relationship(user, '关注', domain)
+
         cls.graph.create(user_to_domain)
 
 NeoUtil.clear()

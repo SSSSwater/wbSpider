@@ -11,7 +11,7 @@ from collections import deque
 import redis
 from ..subcribe import subscribe_one, test_available
 import copy
-
+from ..Util.RedisUtil import RedisQueueManager
 
 class WeiboSpider(RedisSpider):
 
@@ -26,7 +26,6 @@ class WeiboSpider(RedisSpider):
     # start_urls = [url_sample.format(current_page,user_id)]
     ua = UserAgent()
 
-    q = deque()
     r = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
     # cookies_str = ""
     # with open('cookies_mobile.txt', 'r') as f:
@@ -38,8 +37,10 @@ class WeiboSpider(RedisSpider):
     #            'cookie':cookies_str}
 
     def start_requests(self):
-        yield scrapy.Request(url=self.first_get_sample.format(self.user_id), callback=self.start_parse,meta={'page': 1, 'domain': self.user_id},priority=100)
+        # yield scrapy.Request(url=self.first_get_sample.format(self.user_id), callback=self.start_parse,meta={'page': 1, 'domain': self.user_id},priority=100)
 
+        yield scrapy.Request(url=self.url_sample.format(self.user_id,1), callback=self.parse,
+                         meta={'page': 1, 'domain': self.user_id}, priority=100)
 
     def start_parse(self, response):
         datas = {'ok': 0}

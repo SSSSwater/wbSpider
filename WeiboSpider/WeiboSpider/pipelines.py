@@ -17,7 +17,7 @@ from scrapy.pipelines.images import ImagesPipeline
 
 from py2neo import Graph, Subgraph, NodeMatcher
 from py2neo import Node, Relationship, Path
-from Util.NeoUtil import NeoUtil
+from .Util.NeoUtil import NeoUtil
 
 class WeibospiderPipeline(object):
 
