@@ -3,7 +3,7 @@ import json
 import requests
 
 cookies_str = ""
-with open('cookies.txt', 'r') as f:
+with open('../cookies.txt', 'r') as f:
     cookies_str = f.read()
 
 

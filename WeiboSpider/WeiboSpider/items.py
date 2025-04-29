@@ -20,3 +20,17 @@ class WeibospiderUserItem(scrapy.Item):
     created_at = scrapy.Field()
     avatar_img = scrapy.Field()
     pass
+
+def json2item(json):
+    item = WeibospiderUserItem()
+    item['id'] = json['id']
+    item['name'] = json['name']
+    item['gender'] = json['gender']
+    item['followers_count'] = json['followers_count']
+    item['province'] = int(json['province'])
+    item['city'] = int(json['city'])
+    item['location'] = json['location']
+    item['description'] = json['description']
+    item['created_at'] = json['created_at']
+    item['avatar_img'] = json['avatar_hd']
+    return item

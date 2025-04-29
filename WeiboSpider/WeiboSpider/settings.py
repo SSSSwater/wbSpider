@@ -44,7 +44,7 @@ COOKIES_ENABLED = False
 
 # Override the default request headers:
 cookies_str = ""
-with open('cookies_mobile.txt', 'r') as f:
+with open('../cookies_mobile.txt', 'r') as f:
     cookies_str = f.read()
 DEFAULT_REQUEST_HEADERS = {'authority': 'weibo.com',
                            'User-Agent': "Mozilla/5.0 (Linux; Android 14; 23013RK75C Build/UKQ1.230804.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/131.0.6778.260 Mobile Safari/537.36 Weibo (Xiaomi-Redmi K60__weibo__15.2.0__android__android14)",
