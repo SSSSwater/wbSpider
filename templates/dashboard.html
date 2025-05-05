@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析仪表板</title>
+    <!-- 引入Element Plus样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <!-- 引入Vue 3 -->
+    <script src="https://unpkg.com/vue@3"></script>
+    <!-- 引入Element Plus组件库 -->
+    <script src="https://unpkg.com/element-plus"></script>
+    <!-- 引入ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+        }
+        .header {
+            background-color: #409EFF;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+        }
+        .main-container {
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 100px);
+        }
+        .left-panel {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+        }
+        .right-panel {
+            flex: 2;
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+        }
+        .chart-container {
+            width: 100%;
+            height: 100%;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .list-container {
+            margin-top: 20px;
+            height: calc(100% - 120px);
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 头部标题 -->
+        <div class="header">
+            <h1>微博数据分析平台</h1>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="main-container">
+            <!-- 左侧面板 -->
+            <div class="left-panel">
+                <div class="input-group">
+                    <el-input
+                        v-model="inputValue"
+                        placeholder="请输入用户ID"
+                        clearable
+                        @keyup.enter="handleSubmit">
+                    </el-input>
+                    <el-button 
+                        type="primary" 
+                        style="margin-top: 10px; width: 100%;"
+                        @click="handleSubmit">
+                        分析数据
+                    </el-button>
+                </div>
+                <div class="list-container">
+                    <el-table :data="tableData" style="width: 100%">
+                        <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                        <el-table-column prop="name" label="用户名"></el-table-column>
+                        <el-table-column prop="fans" label="粉丝数"></el-table-column>
+                    </el-table>
+                </div>
+            </div>
+
+            <!-- 右侧图表面板 -->
+            <div class="right-panel">
+                <div id="mainChart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+        const app = createApp({
+            setup() {
+                const inputValue = ref('');
+                const tableData = ref([]);
+                let myChart = null;
+
+                // 初始化图表
+                const initChart = () => {
+                    const chartDom = document.getElementById('mainChart');
+                    myChart = echarts.init(chartDom);
+                    const option = {
+                        title: {
+                            text: '用户数据分析'
+                        },
+                        tooltip: {
+                            trigger: 'axis'
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: ['粉丝数', '关注数', '微博数', '互动数']
+                        },
+                        yAxis: {
+                            type: 'value'
+                        },
+                        series: [{
+                            data: [820, 932, 901, 934],
+                            type: 'bar'
+                        }]
+                    };
+                    myChart.setOption(option);
+                };
+
+                // 处理提交
+                const handleSubmit = () => {
+                    if (!inputValue.value) {
+                        ElementPlus.ElMessage.warning('请输入用户ID');
+                        return;
+                    }
+                    // 这里添加与后端的交互逻辑
+                    // 示例数据
+                    tableData.value = [
+                        { id: 1, name: '用户1', fans: 1000 },
+                        { id: 2, name: '用户2', fans: 2000 },
+                        { id: 3, name: '用户3', fans: 3000 }
+                    ];
+                };
+
+                onMounted(() => {
+                    initChart();
+                    // 监听窗口大小变化，调整图表大小
+                    window.addEventListener('resize', () => {
+                        myChart && myChart.resize();
+                    });
+                });
+
+                return {
+                    inputValue,
+                    tableData,
+                    handleSubmit
+                };
+            }
+        });
+
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html> 

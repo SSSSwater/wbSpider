@@ -1,0 +1,149 @@
+200:
+{"ok":0,"msg":"\u6682\u65e0\u76f8\u5173\u6570\u636e","data":[],"debug":{"data":{"error":"User does not exists!","error_code":20003,"request":"\/2\/friendships\/followers.json"},"ok":0,"http_code":400}}200:
+{"ok":0,"msg":"\u6682\u65e0\u76f8\u5173\u6570\u636e","data":[],"debug":{"data":{"error":"User does not exists!","error_code":20003,"request":"\/2\/friendships\/followers.json"},"ok":0,"http_code":400}}200:
+<!doctype html>
+<html style = "height:100%">
+	<head>
+		<meta charset="gb2312">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+		<link rel="apple-touch-icon" href="http://u1.sinaimg.cn/upload/h5/img/apple-touch-icon.png">
+		<title>登录 - 新浪微博</title>
+		<meta id="viewport" name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,minimal-ui">
+	</head>
+    <body  style = "height:100%">
+    <script type="text/javascript">
+        var backUrl = "https://m.weibo.cn/c/fans/followers?page=6593199887&uid=1&cursor=-1&count=20";
+        if (window.WeiboJSBridge) {
+            bridgeReady();
+        } else {
+            document.addEventListener('WeiboJSBridgeReady', function () {
+                bridgeReady();
+            });
+        }
+        function bridgeReady (){
+            WeiboJSBridge.invoke("loginWeiboAccount",
+                {
+                    "needForceUpdate":true
+                },
+                function (params, success, code) {
+                    if (success) {
+                        window.location.replace(backUrl);
+                    } else {
+                        window.location.replace(window.location.href + '&nojsbridge=1');
+                    }
+            });
+        }
+    </script>
+    </body>
+</html>200:
+<!doctype html>
+<html style = "height:100%">
+	<head>
+		<meta charset="gb2312">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+		<link rel="apple-touch-icon" href="http://u1.sinaimg.cn/upload/h5/img/apple-touch-icon.png">
+		<title>登录 - 新浪微博</title>
+		<meta id="viewport" name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,minimal-ui">
+	</head>
+    <body  style = "height:100%">
+    <script type="text/javascript">
+        var backUrl = "https://m.weibo.cn/c/fans/followers?page=6593199887&uid=1&cursor=-1&count=20";
+        if (window.WeiboJSBridge) {
+            bridgeReady();
+        } else {
+            document.addEventListener('WeiboJSBridgeReady', function () {
+                bridgeReady();
+            });
+        }
+        function bridgeReady (){
+            WeiboJSBridge.invoke("loginWeiboAccount",
+                {
+                    "needForceUpdate":true
+                },
+                function (params, success, code) {
+                    if (success) {
+                        window.location.replace(backUrl);
+                    } else {
+                        window.location.replace(window.location.href + '&nojsbridge=1');
+                    }
+            });
+        }
+    </script>
+    </body>
+</html>200:
+<!doctype html>
+<html style = "height:100%">
+	<head>
+		<meta charset="gb2312">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+		<link rel="apple-touch-icon" href="http://u1.sinaimg.cn/upload/h5/img/apple-touch-icon.png">
+		<title>登录 - 新浪微博</title>
+		<meta id="viewport" name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,minimal-ui">
+	</head>
+    <body  style = "height:100%">
+    <script type="text/javascript">
+        var backUrl = "https://m.weibo.cn/c/fans/followers?page=6593199887&uid=1&cursor=-1&count=20";
+        if (window.WeiboJSBridge) {
+            bridgeReady();
+        } else {
+            document.addEventListener('WeiboJSBridgeReady', function () {
+                bridgeReady();
+            });
+        }
+        function bridgeReady (){
+            WeiboJSBridge.invoke("loginWeiboAccount",
+                {
+                    "needForceUpdate":true
+                },
+                function (params, success, code) {
+                    if (success) {
+                        window.location.replace(backUrl);
+                    } else {
+                        window.location.replace(window.location.href + '&nojsbridge=1');
+                    }
+            });
+        }
+    </script>
+    </body>
+</html>200:
+<!doctype html>
+<html style = "height:100%">
+	<head>
+		<meta charset="gb2312">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+		<link rel="apple-touch-icon" href="http://u1.sinaimg.cn/upload/h5/img/apple-touch-icon.png">
+		<title>登录 - 新浪微博</title>
+		<meta id="viewport" name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,minimal-ui">
+	</head>
+    <body  style = "height:100%">
+    <script type="text/javascript">
+        var backUrl = "https://m.weibo.cn/c/fans/followers?page=6593199887&uid=1&cursor=-1&count=20";
+        if (window.WeiboJSBridge) {
+            bridgeReady();
+        } else {
+            document.addEventListener('WeiboJSBridgeReady', function () {
+                bridgeReady();
+            });
+        }
+        function bridgeReady (){
+            WeiboJSBridge.invoke("loginWeiboAccount",
+                {
+                    "needForceUpdate":true
+                },
+                function (params, success, code) {
+                    if (success) {
+                        window.location.replace(backUrl);
+                    } else {
+                        window.location.replace(window.location.href + '&nojsbridge=1');
+                    }
+            });
+        }
+    </script>
+    </body>
+</html>200:
+{"ok":0,"msg":"\u6682\u65e0\u76f8\u5173\u6570\u636e","data":[],"debug":{"data":{"error":"User does not exists!","error_code":20003,"request":"\/2\/friendships\/followers.json"},"ok":0,"http_code":400}}200:
+{"ok":0,"msg":"\u6682\u65e0\u76f8\u5173\u6570\u636e","data":[],"debug":{"data":{"error":"User does not exists!","error_code":20003,"request":"\/2\/friendships\/followers.json"},"ok":0,"http_code":400}}

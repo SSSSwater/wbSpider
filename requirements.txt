@@ -1,0 +1,4 @@
+flask==3.0.2
+flask-restful==0.3.10
+matplotlib==3.8.3
+py2neo==2021.2.4 
