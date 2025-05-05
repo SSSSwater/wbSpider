@@ -10,10 +10,10 @@ class Analysis:
     graph = Graph('bolt://localhost:7687', auth=('neo4j', '123456'))
     nodes_matcher = NodeMatcher(graph)
     relationships_matcher = RelationshipMatcher(graph)
-    targetId = 1640601392
+    targetId = 5997871169
     # 步骤 1: 计算用户相似度分数（需预定义权重参数）
     def proc1_calculate_similar_score(self):
-        target = self.nodes_matcher.match("User", id=self.targetId).first()
+        targets = self.nodes_matcher.match("Target").all()
         users = self.nodes_matcher.match("User")
         self.min_fans = 9999999999
         self.max_fans = 0
@@ -24,17 +24,20 @@ class Analysis:
                 self.min_fans = min(self.min_fans,u['followers_count'])
                 self.max_fans = max(self.max_fans,u['followers_count'])
         for u in users:
-            if u['province'] == target['province'] and u['province']:
-                if u['city'] == target['city'] and u['city']:
-                    is_region_same = 1
+            is_region_same = 0
+            is_gender_same = 0
+            for t in targets:
+                if u['province'] == t['province'] and u['province']:
+                    if u['city'] == t['city'] and u['city']:
+                        is_region_same += float(1)/len(targets)
+                    else:
+                        is_region_same += 0.4/len(targets)
                 else:
-                    is_region_same = 0.4
-            else:
-                is_region_same = 0.1;
-            if u['gender'] == target['gender']:
-                is_gender_same = 1
-            else:
-                is_gender_same = 0
+                    is_region_same += 0.1/len(targets)
+                if u['gender'] == t['gender']:
+                    is_gender_same += float(1)/len(targets)
+                else:
+                    is_gender_same += 0
             range = self.max_fans -  self.min_fans + 0.0001;
             #uFansNorm in [0,1]
             if u['followers_count']:
@@ -75,6 +78,7 @@ class Analysis:
         users = self.nodes_matcher.match("User")
         max_distance = 0
         for u in users:
+            print(max_distance,u['distance'])
             if u['distance'] != 1000:
                 max_distance = max(max_distance, u['distance'])
         max_distance *= 2
@@ -151,7 +155,7 @@ ana.proc3_calculate_vector()
 ana.proc4_create_project()
 ana.proc5_kmeans_analysis()
 ana.proc6_del_project()
-users = ana.proc7_get_nodes_in_same_cluster()
-for u in users:
-    print(u['name'])
-# ana.procT_show_node_figure()
+# users = ana.proc7_get_nodes_in_same_cluster()
+# for u in users:
+#     print(u['name'])
+ana.procT_show_node_figure()

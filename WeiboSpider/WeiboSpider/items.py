@@ -21,8 +21,12 @@ class WeibospiderUserItem(scrapy.Item):
     avatar_img = scrapy.Field()
     pass
 
-def json2item(json):
+
+# domain为关注的人，即id->domain
+# domain = -1表示该节点为所选节点的关注节点
+def json2item(json, domain):
     item = WeibospiderUserItem()
+    item['domain'] = domain
     item['id'] = json['id']
     item['name'] = json['name']
     item['gender'] = json['gender']
