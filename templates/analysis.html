@@ -51,8 +51,10 @@
                     <el-row :gutter="20">
                         <el-col :span="12"><el-input v-model="input"
                                 placeholder="请输入要查询的账号uid"></el-input></el-col>
-                        <el-col :span="12" type="text"><el-button
+                        <el-col :span="6"><el-button
                                 @click="submit">查询</el-button></el-col>
+                        <el-col :span="6"><el-button type="danger"
+                                @click="stopAllSpiders">停止所有爬虫</el-button></el-col>
                     </el-row>
 
                 </div>
@@ -92,7 +94,21 @@
                             intro.$message.error("提交失败失败...");
                         }
                     })
-                }
+                },
+            stopAllSpiders() {
+                axios({
+                    url: '/api/stop_all_spiders',
+                    method: 'POST'
+                }).then(response => {
+                    if (response.data.status === 'success') {
+                        this.$message.success('所有爬虫已停止');
+                    } else {
+                        this.$message.error(response.data.error || '停止爬虫失败');
+                    }
+                }).catch(error => {
+                    this.$message.error('操作失败：' + error.message);
+                });
+            }
         }
     });
 </script>

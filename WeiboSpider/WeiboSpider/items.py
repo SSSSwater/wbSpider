@@ -19,6 +19,12 @@ class WeibospiderUserItem(scrapy.Item):
     description = scrapy.Field()
     created_at = scrapy.Field()
     avatar_img = scrapy.Field()
+    verified_type = scrapy.Field()
+    verified_detail_key = scrapy.Field()
+    verified_detail_desc = scrapy.Field()
+    avatar_img = scrapy.Field()
+    statuses_count = scrapy.Field()
+    friends_count = scrapy.Field()
     pass
 
 
@@ -34,7 +40,17 @@ def json2item(json, domain):
     item['province'] = int(json['province'])
     item['city'] = int(json['city'])
     item['location'] = json['location']
+    item['verified_type'] = json['verified_type']
+    if json['verified_type'] == 0:
+        item['verified_detail_key'] = [d['key'] for d in json['verified_detail']['data']]
+        item['verified_detail_desc'] = [d['desc'] for d in json['verified_detail']['data']]
+    else:
+        item['verified_detail_key'] = []
+        item['verified_detail_desc'] = []
+
     item['description'] = json['description']
     item['created_at'] = json['created_at']
     item['avatar_img'] = json['avatar_hd']
+    item['statuses_count'] = json['statuses_count']
+    item['friends_count'] = json['friends_count']
     return item

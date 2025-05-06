@@ -6,18 +6,11 @@
 
 # useful for handling different item types with a single interface
 import os
-import uuid
 
-from itemadapter import ItemAdapter
-from scrapy.exceptions import DropItem
-from scrapy.utils.project import get_project_settings
-import scrapy
 # from sqlobject import *
-from scrapy.pipelines.images import ImagesPipeline
 
-from py2neo import Graph, Subgraph, NodeMatcher
-from py2neo import Node, Relationship, Path
-from .Util.NeoUtil import NeoUtil
+from py2neo import Graph
+from WeiboSpider.WeiboSpider.NeoUtil import NeoUtil
 
 class WeibospiderPipeline(object):
 

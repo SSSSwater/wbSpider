@@ -30,6 +30,7 @@
             display: flex;
             gap: 20px;
             height: calc(100vh - 100px);
+            overflow: hidden;
         }
         .left-panel {
             flex: 1;
@@ -37,13 +38,29 @@
             padding: 20px;
             border-radius: 4px;
             box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
         }
-        .right-panel {
+        .middle-panel {
             flex: 2;
             background: white;
             padding: 20px;
             border-radius: 4px;
             box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .right-panel {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
         }
         .chart-container {
             width: 100%;
@@ -52,15 +69,119 @@
         .input-group {
             margin-bottom: 20px;
         }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .button-group .el-button {
+            flex: 1;
+        }
+        .button-group .el-button--danger {
+            flex: 0.4;
+        }
         .list-container {
             margin-top: 20px;
-            height: calc(100% - 120px);
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .list-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #303133;
+        }
+        .chart-wrapper {
+            height: 50%;
+            margin-bottom: 20px;
+        }
+        .chart-wrapper:last-child {
+            margin-bottom: 0;
+        }
+        .user-link {
+            text-decoration: none;
+            color: #409EFF;
+        }
+        .user-link:hover {
+            color: #66b1ff;
+        }
+        .user-card {
+            background: #f5f7fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .user-card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .user-basic-info {
+            flex: 1;
+        }
+        .user-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .user-id {
+            color: #909399;
+            font-size: 14px;
+        }
+        .user-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+        }
+        .stat-label {
+            color: #909399;
+            margin-right: 5px;
+        }
+        .stat-value {
+            font-weight: bold;
+        }
+        .user-description {
+            color: #606266;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .user-location {
+            color: #909399;
+            font-size: 14px;
+        }
+        .el-table {
+            flex: 1;
+            overflow: hidden;
+        }
+        .el-table__body-wrapper {
             overflow-y: auto;
+        }
+        .el-table .cell {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .el-table .description-cell {
+            max-width: 300px;
         }
     </style>
 </head>
 <body>
-    <div id="app">
+    <div id="app" style="height: 100vh; width: 100vw;">
         <!-- 头部标题 -->
         <div class="header">
             <h1>微博数据分析平台</h1>
@@ -77,25 +198,140 @@
                         clearable
                         @keyup.enter="handleSubmit">
                     </el-input>
+                    <div class="button-group">
+                        <el-button 
+                            type="primary" 
+                            @click="handleSubmit">
+                            分析数据
+                        </el-button>
+                        <el-button 
+                            type="danger" 
+                            @click="stopAllSpiders">
+                            停止
+                        </el-button>
+                    </div>
+                </div>
+
+                <!-- 用户信息卡片 -->
+                <div class="user-card" v-show="currentUser">
+                    <div class="user-card-header">
+                        <img v-bind:src="currentUser && (currentUser.avatar_img || currentUser.avatar_large || 'https://weibo.com/favicon.ico')" 
+                             class="user-avatar" 
+                             v-bind:alt="currentUser && currentUser.name">
+                        <div class="user-basic-info">
+                            <div class="user-name" v-text="currentUser && currentUser.name"></div>
+                            <div class="user-id">ID: <span v-text="currentUser && currentUser.id"></span></div>
+                        </div>
+                    </div>
+                    <div class="user-description" v-text="currentUser && currentUser.description"></div>
+                    <div class="user-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">粉丝数:</span>
+                            <span class="stat-value" v-text="currentUser && currentUser.followers_count"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">关注数:</span>
+                            <span class="stat-value" v-text="currentUser && currentUser.friends_count"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">性别:</span>
+                            <span class="stat-value" v-text="currentUser && (currentUser.gender === 'm' ? '男' : currentUser.gender === 'f' ? '女' : '未知')"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">微博数:</span>
+                            <span class="stat-value" v-text="currentUser && currentUser.statuses_count"></span>
+                        </div>
+                    </div>
+                    <div class="user-location">
+                        <i class="el-icon-location"></i>
+                        <span v-text="currentUser && currentUser.location"></span>
+                    </div>
+                </div>
+
+                <div class="list-container">
+                    <div class="list-title">已关注用户</div>
+                    <el-table :data="tableData" style="width: 100%" :row-style="{ height: '60px' }">
+                        <el-table-column label="头像" width="60" align="center">
+                            <template v-slot="scope">
+                                <img :src="scope.row.avatar_img || scope.row.avatar_large || 'https://weibo.com/favicon.ico'" 
+                                     class="user-avatar"
+                                     :alt="scope.row.name">
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                        <el-table-column prop="name" label="用户名" width="120"></el-table-column>
+                        <el-table-column prop="followers_count" label="粉丝数" width="100"></el-table-column>
+                        <el-table-column prop="gender" label="性别" width="60"></el-table-column>
+                        <el-table-column prop="location" label="地区" width="100"></el-table-column>
+                        <el-table-column prop="description" label="简介" min-width="200">
+                            <template v-slot="scope">
+                                <div class="description-cell">
+                                    <span v-text="scope.row.description"></span>
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="操作" width="100" fixed="right">
+                            <template v-slot="scope">
+                                <a :href="'https://weibo.com/u/' + scope.row.id" 
+                                   target="_blank" 
+                                   class="user-link">
+                                    访问主页
+                                </a>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+            </div>
+
+            <!-- 中间面板 -->
+            <div class="middle-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0;">同聚类用户</h3>
                     <el-button 
                         type="primary" 
-                        style="margin-top: 10px; width: 100%;"
-                        @click="handleSubmit">
-                        分析数据
+                        @click="triggerClusterAnalysis"
+                        :loading="isClusterLoading">
+                        更新聚类数据
                     </el-button>
                 </div>
                 <div class="list-container">
-                    <el-table :data="tableData" style="width: 100%">
+                    <el-table :data="clusterData" style="width: 100%" :row-style="{ height: '60px' }">
+                        <el-table-column label="头像" width="60" align="center">
+                            <template v-slot="scope">
+                                <img :src="scope.row.avatar_img || scope.row.avatar_large || 'https://weibo.com/favicon.ico'" 
+                                     class="user-avatar"
+                                     :alt="scope.row.name">
+                            </template>
+                        </el-table-column>
                         <el-table-column prop="id" label="ID" width="80"></el-table-column>
-                        <el-table-column prop="name" label="用户名"></el-table-column>
-                        <el-table-column prop="fans" label="粉丝数"></el-table-column>
+                        <el-table-column prop="name" label="用户名" width="120"></el-table-column>
+                        <el-table-column prop="followers_count" label="粉丝数" width="100"></el-table-column>
+                        <el-table-column prop="gender" label="性别" width="60"></el-table-column>
+                        <el-table-column prop="location" label="地区" width="100"></el-table-column>
+                        <el-table-column prop="description" label="简介" min-width="200">
+                            <template v-slot="scope">
+                                <div class="description-cell">
+                                    <span v-text="scope.row.description"></span>
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="操作" width="100" fixed="right">
+                            <template v-slot="scope">
+                                <a :href="'https://weibo.com/u/' + scope.row.id" 
+                                   target="_blank" 
+                                   class="user-link">
+                                    访问主页
+                                </a>
+                            </template>
+                        </el-table-column>
                     </el-table>
                 </div>
             </div>
 
             <!-- 右侧图表面板 -->
             <div class="right-panel">
-                <div id="mainChart" class="chart-container"></div>
+                <div class="chart-wrapper" id="genderChart"></div>
+                <div class="chart-wrapper" id="locationChart"></div>
             </div>
         </div>
     </div>
@@ -106,32 +342,191 @@
             setup() {
                 const inputValue = ref('');
                 const tableData = ref([]);
-                let myChart = null;
+                const clusterData = ref([]);
+                const isClusterLoading = ref(false);
+                const currentUser = ref(null);
+                let genderChart = null;
+                let locationChart = null;
 
                 // 初始化图表
-                const initChart = () => {
-                    const chartDom = document.getElementById('mainChart');
-                    myChart = echarts.init(chartDom);
-                    const option = {
+                const initCharts = () => {
+                    const genderChartDom = document.getElementById('genderChart');
+                    const locationChartDom = document.getElementById('locationChart');
+                    genderChart = echarts.init(genderChartDom);
+                    locationChart = echarts.init(locationChartDom);
+
+                    // 性别分布图表配置
+                    const genderOption = {
                         title: {
-                            text: '用户数据分析'
+                            text: '用户性别分布',
+                            left: 'center'
                         },
                         tooltip: {
-                            trigger: 'axis'
+                            trigger: 'item',
+                            formatter: '{a} <br/>{b}: {c} ({d}%)'
                         },
-                        xAxis: {
-                            type: 'category',
-                            data: ['粉丝数', '关注数', '微博数', '互动数']
+                        legend: {
+                            orient: 'horizontal',
+                            bottom: 'bottom',
+                            data: ['男', '女', '未知']
                         },
-                        yAxis: {
-                            type: 'value'
-                        },
-                        series: [{
-                            data: [820, 932, 901, 934],
-                            type: 'bar'
-                        }]
+                        series: [
+                            {
+                                name: '性别分布',
+                                type: 'pie',
+                                radius: '50%',
+                                data: [
+                                    { value: 0, name: '男' },
+                                    { value: 0, name: '女' },
+                                    { value: 0, name: '未知' }
+                                ],
+                                emphasis: {
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowOffsetX: 0,
+                                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                    }
+                                }
+                            }
+                        ]
                     };
-                    myChart.setOption(option);
+                    
+
+                    // 地区分布图表配置
+                    const locationOption = {
+                        title: {
+                            text: '用户地区分布',
+                            left: 'center'
+                        },
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: '{a} <br/>{b}: {c} ({d}%)'
+                        },
+                        legend: {
+                            orient: 'horizontal',
+                            bottom: 'bottom',
+                            type: 'scroll'
+                        },
+                        series: [
+                            {
+                                name: '地区分布',
+                                type: 'pie',
+                                radius: '50%',
+                                data: [],
+                                emphasis: {
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowOffsetX: 0,
+                                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                    }
+                                }
+                            }
+                        ]
+                    };
+
+                    genderChart.setOption(genderOption);
+                    locationChart.setOption(locationOption);
+
+                    
+                    updateMainData();
+                    updateTargetData();
+                };
+
+                // 更新当前用户信息
+                const updateMainData = () => {
+                    fetch(`/api/main_data`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data) {
+                                currentUser.value = data;
+                            } else {
+                                currentUser.value = null;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('获取用户数据失败：', error);
+                            currentUser.value = null;
+                        });
+                };
+                
+                // 更新用户关注列表信息
+                const updateTargetData = () => {
+                    fetch(`/api/target_data`)
+                        .then(response => response.json())
+                        .then(data => {
+                            tableData.value = data;
+                        });
+                };
+                // 更新图表数据
+                const updateCharts = (data) => {
+                    // 获取统计数据
+                    fetch('/api/user_stats')
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.status === 'success') {
+                                const stats = result.data;
+                                
+                                // 更新性别分布图表
+                                const genderData = [
+                                    { value: stats.gender.m, name: '男' },
+                                    { value: stats.gender.f, name: '女' },
+                                    { value: stats.gender.unknown, name: '未知' }
+                                ];
+                                genderChart.setOption({
+                                    series: [{
+                                        data: genderData
+                                    }]
+                                });
+
+                                // 更新地区分布图表
+                                const locationData = Object.entries(stats.location)
+                                    .map(([name, value]) => ({
+                                        name,
+                                        value
+                                    }));
+                                locationChart.setOption({
+                                    legend: {
+                                        data: locationData.map(item => item.name)
+                                    },
+                                    series: [{
+                                        data: locationData
+                                    }]
+                                });
+                            } else {
+                                ElementPlus.ElMessage.error('获取统计数据失败');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('获取统计数据失败：', error);
+                            ElementPlus.ElMessage.error('获取统计数据失败');
+                        });
+                };
+
+                // 触发聚类分析
+                const triggerClusterAnalysis = () => {
+
+                    isClusterLoading.value = true;
+                    ElementPlus.ElMessage.info('正在获取聚类数据...');
+
+                    fetch(`/api/cluster_data`)
+                        .then(response => response.json())
+                        .then(clusterNodes => {
+                            if (clusterNodes && clusterNodes.length > 0) {
+                                clusterData.value = clusterNodes;
+                                // 更新图表数据
+                                updateCharts(clusterNodes);
+                                ElementPlus.ElMessage.success('聚类数据已更新！');
+                            } else {
+                                ElementPlus.ElMessage.warning('未找到聚类数据');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('获取聚类数据失败：', error);
+                            ElementPlus.ElMessage.error('获取聚类数据失败');
+                        })
+                        .finally(() => {
+                            isClusterLoading.value = false;
+                        });
                 };
 
                 // 处理提交
@@ -140,27 +535,98 @@
                         ElementPlus.ElMessage.warning('请输入用户ID');
                         return;
                     }
-                    // 这里添加与后端的交互逻辑
-                    // 示例数据
-                    tableData.value = [
-                        { id: 1, name: '用户1', fans: 1000 },
-                        { id: 2, name: '用户2', fans: 2000 },
-                        { id: 3, name: '用户3', fans: 3000 }
-                    ];
+
+                    // 显示加载状态
+                    ElementPlus.ElMessage.info('正在分析数据，请稍候...');
+                    
+                    updateMainData();
+                    
+                    // 发送初始请求启动爬虫
+                    fetch(`/api/analyze/${inputValue.value}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.task_id) {
+                            // 开始轮询Neo4j数据
+                            const pollInterval = setInterval(() => {
+                                fetch(`/api/target_data`)
+                                    .then(response => response.json())
+                                    .then(userData => {
+                                        if (userData) {
+                                            // 更新表格数据
+                                            tableData.value = userData;
+                                            // 更新图表数据
+                                            updateCharts(userData);
+                                            
+                                            // 如果数据更新了，显示成功消息并停止轮询
+                                            ElementPlus.ElMessage.success('数据已更新！');
+                                            clearInterval(pollInterval);
+                                            window.currentPollInterval = null;
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('获取数据失败：', error);
+                                    });
+                            }, 1000); // 每秒轮询一次
+
+                            // 存储轮询间隔ID，以便在需要时清除
+                            window.currentPollInterval = pollInterval;
+                        }
+                    })
+                    .catch(error => {
+                        ElementPlus.ElMessage.error('请求失败：' + error);
+                    });
+                };
+
+                // 停止所有爬虫
+                const stopAllSpiders = () => {
+                    // 清除轮询
+                    if (window.currentPollInterval) {
+                        clearInterval(window.currentPollInterval);
+                        window.currentPollInterval = null;
+                    }
+
+                    fetch('/api/stop_all_spiders', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            ElementPlus.ElMessage.success(data.message);
+                        } else {
+                            ElementPlus.ElMessage.error(data.error || '停止爬虫失败');
+                        }
+                    })
+                    .catch(error => {
+                        ElementPlus.ElMessage.error('操作失败：' + error);
+                    });
                 };
 
                 onMounted(() => {
-                    initChart();
+                    initCharts();
                     // 监听窗口大小变化，调整图表大小
                     window.addEventListener('resize', () => {
-                        myChart && myChart.resize();
+                        genderChart && genderChart.resize();
+                        locationChart && locationChart.resize();
                     });
                 });
 
                 return {
                     inputValue,
                     tableData,
-                    handleSubmit
+                    clusterData,
+                    isClusterLoading,
+                    currentUser,
+                    handleSubmit,
+                    triggerClusterAnalysis,
+                    stopAllSpiders
                 };
             }
         });
