@@ -1,14 +1,20 @@
 import json
-
 import scrapy
 from scrapy_redis.spiders import RedisSpider
 from ..items import json2item
 from fake_useragent import UserAgent
 import redis
-from WeiboSpider.WeiboSpider.RedisUtil import RedisQueueManager
-from WeiboSpider.WeiboSpider.RequestUtil import get_following_all
-from WeiboSpider.WeiboSpider.NeoUtil import NeoUtil
-
+from ..RedisUtil import RedisQueueManager
+from ..RequestUtil import get_following_all
+from ..NeoUtil import NeoUtil
+from scrapy.utils.log import configure_logging
+import logging
+from scrapy.exceptions import IgnoreRequest
+from scrapy.downloadermiddlewares.retry import RetryMiddleware
+from scrapy.utils.response import response_status_message
+import time
+from scrapy import signals
+from scrapy.signalmanager import dispatcher
 
 class WeiboSpider(RedisSpider):
     name = "WeiboUser"
@@ -22,80 +28,142 @@ class WeiboSpider(RedisSpider):
     FANS_THRESHOLD = 5000000  # 粉丝数阈值
     MIN_VALID_USERS = 5  # 每页最少需要有多少个有效用户才继续爬取
 
+    # 并发设置
+    custom_settings = {
+        'CONCURRENT_REQUESTS': 32,  # 全局并发请求数
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 8,  # 每个域名的并发请求数
+        'CONCURRENT_REQUESTS_PER_IP': 8,  # 每个IP的并发请求数
+        'DOWNLOAD_DELAY': 0.5,  # 下载延迟
+        'RANDOMIZE_DOWNLOAD_DELAY': True,  # 随机化下载延迟
+        'COOKIES_ENABLED': False,  # 禁用cookies
+        'RETRY_ENABLED': True,  # 启用重试
+        'RETRY_TIMES': 3,  # 重试次数
+        'RETRY_HTTP_CODES': [500, 502, 503, 504, 522, 524, 408, 429],  # 需要重试的HTTP状态码
+        'DOWNLOAD_TIMEOUT': 15,  # 下载超时时间
+        'REDIRECT_ENABLED': True,  # 允许重定向
+        'REDIRECT_MAX_TIMES': 5,  # 最大重定向次数
+        'AJAXCRAWL_ENABLED': True,  # 启用AJAX爬取
+        'REACTOR_THREADPOOL_MAXSIZE': 20,  # 线程池大小
+        'DNS_TIMEOUT': 10,  # DNS超时时间
+        'LOG_LEVEL': 'INFO',  # 日志级别
+    }
+
     r = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
-
-    # cookies_str = ""
-    # with open('cookies_mobile.txt', 'r') as f:
-    #     cookies_str = f.read()
-
-    # headers = {'authority': 'weibo.com',
-    #            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
-    #            'referer': 'https://weibo.com/u/page/follow/{}?relate=fans'.format(user_id),
-    #            'cookie':cookies_str}
+    
+    # 配置日志
+    configure_logging(install_root_handler=False)
+    logging.basicConfig(
+        filename='scrapy_log.txt',
+        format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
+        level=logging.INFO
+    )
 
     def __init__(self, user_id=None, *args, **kwargs):
         super(WeiboSpider, self).__init__(*args, **kwargs)
         self.user_id = user_id if user_id else 6593199887  # 默认值
+        self.stats = {}
+        self.start_time = time.time()
+        self.request_count = 0
+        self.completed_count = 0
+        self.is_idle = False
+        self.idle_count = 0
+        self.MAX_IDLE_COUNT = 10  # 最大空闲次数
+        
+        # 注册信号处理器
+        dispatcher.connect(self.spider_idle, signal=signals.spider_idle)
+        dispatcher.connect(self.request_scheduled, signal=signals.request_scheduled)
+        dispatcher.connect(self.response_received, signal=signals.response_received)
+
+    def request_scheduled(self, request, spider):
+        """请求被调度时的处理"""
+        self.request_count += 1
+        logging.info(f"请求已调度: {request.url}")
+        RedisQueueManager.set_status(1)
+
+    def response_received(self, response, request, spider):
+        """收到响应时的处理"""
+        self.completed_count += 1
+        logging.info(f"请求已完成: {request.url}")
+
+    def spider_idle(self, spider):
+        """爬虫空闲时的处理"""
+        if not self.is_idle:
+            self.is_idle = True
+            self.idle_count = 0
+            logging.info("爬虫进入空闲状态")
+            RedisQueueManager.set_status(0)
+
+        self.idle_count += 1
+        logging.info(f"爬虫空闲次数: {self.idle_count}")
+
+        # 检查是否所有请求都已完成
+        if self.request_count > 0 and self.request_count == self.completed_count:
+            logging.info("所有请求已完成")
+            if self.idle_count >= self.MAX_IDLE_COUNT:
+                logging.info("爬虫任务完成，准备关闭")
+                self.crawler.engine.close_spider(self, '任务完成')
 
     def start_requests(self):
         """初始化爬虫，从初始用户开始"""
-        with open("scrapy_log.txt", 'w') as log:
-            log.write("")
+        logging.info("开始初始化爬虫")
         RedisQueueManager.clear_task()
         NeoUtil.add_main_node(self.user_id)
         
         # 获取初始用户列表
         start_list = get_following_all(self.user_id)
-        with open("scrapy_log.txt", 'a') as log:
-            log.write(f"获取到 {len(start_list)} 个初始用户\n")
+        logging.info(f"获取到 {len(start_list)} 个初始用户")
         
-        # 为每个初始用户创建爬取任务，深度为1
-        for u in start_list:
-            NeoUtil.try_add_node(u)
-            with open("scrapy_log.txt", 'a') as log:
-                log.write(f"开始爬取用户 {u['name']}({u['id']}) 的粉丝列表\n")
-            yield scrapy.Request(
-                url=self.url_sample.format(1, u['id']),
-                callback=self.parse,
-                meta={
-                    'page': 1,
-                    'domain': u['id'],
-                    'depth': 1,
-                    'current_user': u['id'],  # 记录当前正在爬取的用户
-                    'priority': 100
-                },
-                priority=100
-            )
+        # 批量添加用户到Neo4j
+        batch_size = 100
+        for i in range(0, len(start_list), batch_size):
+            batch = start_list[i:i + batch_size]
+            for u in batch:
+                NeoUtil.try_add_node(u)
+                logging.info(f"开始爬取用户 {u['name']}({u['id']}) 的粉丝列表")
+                yield scrapy.Request(
+                    url=self.url_sample.format(1, u['id']),
+                    callback=self.parse,
+                    meta={
+                        'page': 1,
+                        'domain': u['id'],
+                        'depth': 1,
+                        'current_user': u['id'],
+                        'priority': 100,
+                        'retry_times': 0
+                    },
+                    priority=100,
+                    dont_filter=True
+                )
 
     def parse(self, response):
         """解析粉丝列表页面"""
-        datas = {'ok': 0}
         try:
             datas = json.loads(response.text)
-        except Exception:
-            with open("err_log.txt", 'a') as err:
-                err.write(str(response.status) + ":\n" + response.text)
+        except json.JSONDecodeError:
+            logging.error(f"JSON解析错误: {response.status} - {response.url}")
+            return
+        except Exception as e:
+            logging.error(f"解析错误: {str(e)} - {response.url}")
             return
 
         if datas['ok'] != 1:
-            with open("err_log.txt", 'a') as err:
-                err.write(str(response.status) + ":\n" + response.text)
+            logging.error(f"API返回错误: {response.status} - {response.url}")
             return
 
         try:
             users = datas['data']['list']['users']
-        except Exception:
-            with open("err_log.txt", 'a') as err:
-                err.write(str(response.status) + ":\n" + response.text)
+        except KeyError:
+            logging.error(f"数据格式错误: {response.url}")
             return
 
-
-        with open("scrapy_log.txt", 'a') as log:
-            log.write(f"正在爬取用户 {response.meta['current_user']} 的第 {response.meta.get('page', 1)} 页粉丝列表(深度:{response.meta.get('depth', 1)})\n")
+        current_user = response.meta['current_user']
+        current_page = response.meta.get('page', 1)
+        current_depth = response.meta.get('depth', 1)
+        
+        logging.info(f"正在爬取用户 {current_user} 的第 {current_page} 页粉丝列表(深度:{current_depth})")
 
         if not users:
-            with open("scrapy_log.txt", 'a') as log:
-                log.write(f"用户 {response.meta['current_user']} 的第 {response.meta.get('page', 1)} 页没有更多粉丝\n")
+            logging.info(f"用户 {current_user} 的第 {current_page} 页没有更多粉丝")
             return
 
         # 统计当前页面有效用户数量
@@ -104,47 +172,57 @@ class WeiboSpider(RedisSpider):
             # 保存用户数据到图数据库
             yield json2item(user, response.meta['domain'])
             
-            # 统计有效用户数量
             if user['followers_count'] >= self.FANS_THRESHOLD:
                 next_page = True
                 # 如果深度允许，创建新的爬取任务
                 if response.meta.get('depth', 1) < self.MAX_DEPTH:
                     with open("scrapy_log.txt", 'a') as log:
-                        log.write(f"将用户 {user['name']}({user['id']}) 加入队列(粉丝数:{user['followers_count']}, 深度:{response.meta.get('depth', 1) + 1})\n")
+                        logging.info(f"将用户 {user['name']}({user['id']}) 加入队列(粉丝数:{user['followers_count']}, 深度:{response.meta.get('depth', 1) + 1})\n")
                     yield scrapy.Request(
                         url=self.url_sample.format(1, user['id']),
                         meta={
                             'page': 1,
                             'domain': user['id'],
-                            'depth': response.meta.get('depth', 1) + 1,
+                            'depth': current_depth + 1,
                             'current_user': user['id'],
-                            'priority': 20
+                            'priority': 20,
+                            'retry_times': 0
                         },
                         callback=self.parse,
                         priority=20
                     )
             else:
                 with open("scrapy_log.txt", 'a') as log:
-                    log.write(f"用户 {user['name']}({user['id']}) 粉丝数 {user['followers_count']} 小于阈值，跳过\n")
+                    logging.info(f"用户 {user['name']}({user['id']}) 粉丝数 {user['followers_count']} 小于阈值，跳过\n")
                 next_page = False
                 break
 
         # 判断是否继续爬取下一页
         if next_page:
             with open("scrapy_log.txt", 'a') as log:
-                log.write(f"用户 {response.meta['current_user']} 的第 {response.meta.get('page', 1)} 页粉丝数都大于阈值，继续爬取下一页\n")
+                logging.info(f"用户 {response.meta['current_user']} 的第 {response.meta.get('page', 1)} 页粉丝数都大于阈值，继续爬取下一页\n")
             yield scrapy.Request(
-                url=self.url_sample.format(response.meta.get('page', 1) + 1, response.meta['current_user']),
+                url=self.url_sample.format(current_page + 1, current_user),
                 meta={
-                    'page': response.meta.get('page', 1) + 1,
-                    'domain': response.meta['current_user'],
-                    'depth': response.meta.get('depth', 1),  # 保持当前深度不变
-                    'current_user': response.meta['current_user'],
-                    'priority': response.meta['priority'] + 1
+                    'page': current_page + 1,
+                    'domain': current_user,
+                    'depth': current_depth,
+                    'current_user': current_user,
+                    'priority': response.meta['priority'] + 1,
+                    'retry_times': 0
                 },
                 callback=self.parse,
-                priority=response.meta['priority'] + 1  # 同一用户的下一页优先级较高
+                priority=response.meta['priority'] + 1
             )
         else:
-            with open("scrapy_log.txt", 'a') as log:
-                log.write(f"用户 {response.meta['current_user']} 的第 {response.meta.get('page', 1)} 页出现粉丝数小于阈值的用户，停止爬取该用户的后续页面\n")
+            logging.info(f"用户 {current_user} 的第 {current_page} 页最后一个粉丝数未超过阈值，停止爬取")
+
+    def closed(self, reason):
+        """爬虫关闭时的处理"""
+        end_time = time.time()
+        duration = end_time - self.start_time
+        logging.info(f"爬虫运行完成，总耗时: {duration:.2f}秒")
+        logging.info(f"关闭原因: {reason}")
+        logging.info(f"总请求数: {self.request_count}")
+        logging.info(f"完成请求数: {self.completed_count}")
+        logging.info(f"空闲次数: {self.idle_count}")

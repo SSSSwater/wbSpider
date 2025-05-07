@@ -16,7 +16,12 @@ class RedisQueueManager:
     @classmethod
     def queue_length(cls):
         return cls.redis_client.llen('WeiboUser:requests')
-
+    @classmethod
+    def set_status(cls,status):
+        cls.redis_client.set('status',status)
+    @classmethod
+    def get_status(cls):
+        return cls.redis_client.get('status')
     @classmethod
     def clear_task(cls):
         cls.redis_client.flushdb()

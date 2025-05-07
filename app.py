@@ -1,17 +1,16 @@
-import DataAnalysis
+import base64
+import os
+import subprocess
+import threading
+import uuid
+
+import requests
 from flask import Flask, render_template, request, jsonify
 from flask_restful import Resource, Api, reqparse
-import subprocess
-import json
-import os
-import uuid
-from datetime import datetime
-import threading
-import time
-from py2neo import Graph, NodeMatcher
-import signal
 
-from WeiboSpider.WeiboSpider.NeoUtil import  NeoUtil
+from WeiboSpider.WeiboSpider.RedisUtil import RedisQueueManager
+import DataAnalysis
+from WeiboSpider.WeiboSpider.NeoUtil import NeoUtil
 
 app = Flask(__name__)
 api = Api(app)
@@ -143,6 +142,17 @@ def get_task_status(task_id):
         return jsonify({'status': 'failed', 'error': '任务不存在'})
     return jsonify(tasks[task_id])
 
+@app.route('/api/spider_status', methods=['GET'])
+def get_spider_status():
+    if not RedisQueueManager.get_status():
+        return jsonify({'status': 'none'})
+    else:
+        res = int.from_bytes(RedisQueueManager.get_status(),byteorder='big')
+        print(res)
+        if res == 1:
+            return jsonify({'status': 'processing', 'data': str(RedisQueueManager.get_status())})
+        else:
+            return jsonify({'status': 'success', 'data': str(RedisQueueManager.get_status())})
 @app.route('/api/stop_spider/<task_id>', methods=['POST'])
 def stop_spider(task_id):
     """停止指定的爬虫任务"""
@@ -302,6 +312,43 @@ def get_user_stats_api():
         return jsonify({
             'status': 'error',
             'message': f'获取统计数据失败: {str(e)}'
+        }), 500
+
+@app.route('/api/avatar', methods=['GET'])
+def get_avatar_base64():
+    """获取用户头像的base64编码"""
+    try:
+        # 从请求参数获取头像URL
+        avatar_url = request.args.get('url')
+        if not avatar_url:
+            return jsonify({
+                'status': 'error',
+                'message': '未提供头像URL'
+            }), 400
+
+        # 下载头像
+        response = requests.get(avatar_url)
+        if response.status_code != 200:
+            return jsonify({
+                'status': 'error',
+                'message': '下载头像失败'
+            }), 500
+
+        # 转换为base64
+        image_data = base64.b64encode(response.content).decode('utf-8')
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'base64': image_data,
+                'content_type': response.headers.get('content-type', 'image/jpeg')
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'获取头像失败: {str(e)}'
         }), 500
 
 parser = reqparse.RequestParser()

@@ -10,7 +10,7 @@ import os
 # from sqlobject import *
 
 from py2neo import Graph
-from WeiboSpider.WeiboSpider.NeoUtil import NeoUtil
+from .NeoUtil import NeoUtil
 
 class WeibospiderPipeline(object):
 

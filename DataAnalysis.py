@@ -2,135 +2,154 @@ import matplotlib.pyplot as plt
 from py2neo import Graph, NodeMatcher, RelationshipMatcher
 from py2neo import Node
 from py2neo.cypher import Record
+from functools import lru_cache
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Dict, Set, Tuple
 
-
-def jaccard(list1, list2):
-    intersection = len(list(set(list1).intersection(list2)))
+@lru_cache(maxsize=1000)
+def jaccard(list1: tuple, list2: tuple) -> float:
+    """使用缓存优化的Jaccard相似度计算"""
+    intersection = len(set(list1).intersection(set(list2)))
     union = (len(list1) + len(list2)) - intersection
-    return float(intersection) / union
+    return float(intersection) / union if union > 0 else 0.0
 
 
 class Analysis:
-    min_fans = 999999999
-    max_fans = 0
-    graph = Graph('bolt://localhost:7687', auth=('neo4j', '123456'))
-    nodes_matcher = NodeMatcher(graph)
-    relationships_matcher = RelationshipMatcher(graph)
-    targetId = 5997871169
+
+    def __init__(self):
+        self.graph = Graph('bolt://localhost:7687', auth=('neo4j', '123456'))
+        self.nodes_matcher = NodeMatcher(self.graph)
+        self.relationships_matcher = RelationshipMatcher(self.graph)
+        self.targetId = 5997871169
+        self.min_fans = float('inf')
+        self.max_fans = 0
+        self._cache = {} 
+    def _get_all_users_data(self) -> List[Dict]:
+        """批量获取所有用户数据"""
+        query = """
+        MATCH (u:User)
+        RETURN u
+        """
+        return [record['u'] for record in self.graph.run(query)]
+
+    def _get_targets_data(self) -> List[Dict]:
+        """批量获取目标用户数据"""
+        query = """
+        MATCH (t:Target)
+        RETURN t
+        """
+        return [record['t'] for record in self.graph.run(query)]
+    def _calculate_similarity_batch(self, user: Dict, targets: List[Dict]) -> Tuple[float, float]:
+        """批量计算单个用户与所有目标用户的相似度"""
+        # 1. 地理位置相似度
+        region_similarity = sum(
+            1.0 / len(targets) if user['province'] == t['province'] and user['city'] == t['city'] and user['province'] and user['city']
+            else 0.6 / len(targets) if user['province'] == t['province'] and user['province']
+            else 0.2 / len(targets)
+            for t in targets
+        )
+        # 2. 性别相似度
+        gender_similarity = sum(
+            1.0 / len(targets) if user['gender'] == t['gender']
+            else 0.0
+            for t in targets
+        )
+        # 3. 认证信息相似度
+        verified_similarity = sum(
+            (0.5 + 0.5 * jaccard(tuple(user['verified_detail_key']), tuple(t['verified_detail_key']))) / len(targets)
+            if user['verified_type'] == t['verified_type'] and t['verified_type'] == 0
+            else 0.3 / len(targets) if user['verified_type'] == t['verified_type'] and t['verified_type'] == -1
+            else 0.1 / len(targets) if user['verified_type'] == t['verified_type'] and t['verified_type'] != 0
+            else 0.1 / len(targets) if t['verified_type'] == -1
+            else 0.3 / len(targets) if t['verified_type'] != 0
+            else 0.2 / len(targets)
+            for t in targets
+        )
+        # 4. 粉丝数相似度
+        fans_similarity = sum(
+            min(user['followers_count'], t['followers_count']) / max(user['followers_count'], t['followers_count']) / len(targets)
+            if user['followers_count'] and t['followers_count']
+            else 0.1 / len(targets)
+            for t in targets
+        )
+        # 5. 微博数相似度
+        weibo_similarity = sum(
+            min(user['statuses_count'], t['statuses_count']) / max(user['statuses_count'], t['statuses_count']) / len(targets)
+            if user['statuses_count'] and t['statuses_count']
+            else 0.1 / len(targets)
+            for t in targets
+        )
+        # 6. 关注数相似度
+        following_similarity = sum(
+            min(user['friends_count'], t['friends_count']) / max(user['friends_count'], t['friends_count']) / len(targets)
+            if user['friends_count'] and t['friends_count']
+            else 0.1 / len(targets)
+            for t in targets
+        )
+        # 7. 简介相似度
+        description_similarity = sum(
+            (0.5 + 0.5 * jaccard(tuple(user['description'].split()), tuple(t['description'].split()))) / len(targets)
+            if user['description'] and t['description']
+            else 0.1 / len(targets)
+            for t in targets
+        )
+
+        # 计算综合相似度
+        basic_similarity = (
+            region_similarity * 0.20 +
+            gender_similarity * 0.15 +
+            fans_similarity * 0.35 +
+            weibo_similarity * 0.15 +
+            following_similarity * 0.15
+        )
+
+        area_similarity = (
+            verified_similarity * 0.40 +
+            description_similarity * 0.60
+        )
+
+        return basic_similarity, area_similarity
 
     # 步骤 1: 计算用户相似度分数
     def proc1_calculate_similar_score(self):
-        main_node = self.nodes_matcher.match("Main").first()
-        main_node['basic_similarity'] = 1
-        main_node['area_similarity'] = 1
-        self.graph.push(main_node)
-        targets = self.nodes_matcher.match("Target").all()
-        users = self.nodes_matcher.match("User")
+        """优化后的相似度计算"""
+        # 批量获取数据
+        users = self._get_all_users_data()
+        targets = self._get_targets_data()
         
         # 计算粉丝数范围
-        self.min_fans = 9999999999
-        self.max_fans = 0
-        for u in users:
-            if u['id'] == self.targetId:
-                continue
-            if u['followers_count']:
-                self.min_fans = min(self.min_fans, u['followers_count'])
-                self.max_fans = max(self.max_fans, u['followers_count'])
+        self.min_fans = min(u['followers_count'] for u in users if u['id'] != self.targetId and u['followers_count'])
+        self.max_fans = max(u['followers_count'] for u in users if u['id'] != self.targetId and u['followers_count'])
 
-        for u in users:
-            # 1. 地理位置相似度
-            region_similarity = 0
-            for t in targets:
-                if u['province'] == t['province'] and u['province']:
-                    if u['city'] == t['city'] and u['city']:
-                        region_similarity += 1.0 / len(targets)  # 完全匹配
-                    else:
-                        region_similarity += 0.6 / len(targets)  # 省份匹配
-                else:
-                    region_similarity += 0.2 / len(targets)  # 不匹配
-
-            # 2. 性别相似度
-            gender_similarity = 0
-            for t in targets:
-                if u['gender'] == t['gender']:
-                    gender_similarity += 1.0 / len(targets)  # 性别匹配
-                else:
-                    gender_similarity += 0.0 / len(targets)  # 性别不匹配
-
-            # 3. 认证信息相似度
-            verified_similarity = 0
-            for t in targets:
-                if u['verified_type'] == t['verified_type']:
-                    if t['verified_type'] == -1:  # 未认证
-                        verified_similarity += 0.3 / len(targets)
-                    elif t['verified_type'] != 0:  # 少推点官号
-                        verified_similarity += 0.1 / len(targets)
-                    else:  # 个人认证
-                        verified_similarity += (0.5 + 0.5 * jaccard(u['verified_detail_key'], t['verified_detail_key'])) / len(targets)
-                else:
-                    if t['verified_type'] == -1:
-                        verified_similarity += 0.1 / len(targets)
-                    elif t['verified_type'] != 0:
-                        verified_similarity += 0.3 / len(targets)
-                    else:
-                        verified_similarity += 0.2 / len(targets)
-
-            # 4. 粉丝数相似度
-            fans_similarity = 0
-            for t in targets:
-                if u['followers_count'] and t['followers_count']:
-                    ratio = min(u['followers_count'], t['followers_count']) / max(u['followers_count'], t['followers_count'])
-                    fans_similarity += ratio / len(targets)
-                else:
-                    fans_similarity += 0.1 / len(targets)
-
-            # 5. 微博数相似度
-            weibo_similarity = 0
-            for t in targets:
-                if u['statuses_count'] and t['statuses_count']:
-                    ratio = min(u['statuses_count'], t['statuses_count']) / max(u['statuses_count'], t['statuses_count'])
-                    weibo_similarity += ratio / len(targets)
-                else:
-                    weibo_similarity += 0.1 / len(targets)
-
-            # 6. 关注数相似度
-            following_similarity = 0
-            for t in targets:
-                if u['friends_count'] and t['friends_count']:
-                    ratio = min(u['friends_count'], t['friends_count']) / max(u['friends_count'], t['friends_count'])
-                    following_similarity += ratio / len(targets)
-                else:
-                    following_similarity += 0.1 / len(targets)
-
-            # 7. 简介相似度
-            description_similarity = 0
-            for t in targets:
-                if u['description'] and t['description']:
-                    # 计算简介关键词的重叠度
-                    u_words = set(u['description'].split())
-                    t_words = set(t['description'].split())
-                    if u_words and t_words:
-                        description_similarity += (0.5+0.5*jaccard(u_words, t_words)) / len(targets)
-                else:
-                    description_similarity += 0.1 / len(targets)
-
-            # 综合相似度计算（调整权重）
-            basic_similarity = (
-                region_similarity * 0.20 +      # 地理位置权重
-                gender_similarity * 0.15 +      # 性别权重
-                fans_similarity * 0.35 +             # 粉丝数权重
-                weibo_similarity * 0.15 +      # 微博数权重
-                following_similarity * 0.15   # 关注数权重
-            )
-            area_similarity = (
-                verified_similarity * 0.40 +    # 认证信息权重
-                description_similarity * 0.60   # 简介相似度权重
-            )
-
-            # 保存相似度分数
-            u['basic_similarity'] = basic_similarity
-            u['area_similarity'] = area_similarity
-            self.graph.push(u)
+        # 使用线程池并行处理
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = []
+            for user in users:
+                if user['id'] == self.targetId:
+                    user['basic_similarity'] = 1
+                    user['area_similarity'] = 1
+                    self.graph.push(user)
+                    continue
+                futures.append(executor.submit(self._calculate_similarity_batch, user, targets))
+            # 批量更新数据库
+            batch_size = 100
+            updates = []
+            for i, future in enumerate(futures):
+                basic_similarity, area_similarity = future.result()
+                user = users[i]
+                user['basic_similarity'] = basic_similarity
+                user['area_similarity'] = area_similarity
+                updates.append(user)
+                
+                if len(updates) >= batch_size:
+                    for u in updates:
+                        self.graph.push(u)
+                    updates = []
+            
+            if updates:
+                for u in updates:
+                    self.graph.push(u)
 
     # 步骤 2: 计算图结构距离（关注关系的最短路径）
     def proc2_calculate_shortest_path(self):
@@ -178,7 +197,7 @@ class Analysis:
             u['refer_vector'] = [float(u['basic_similarity']), float(u['area_similarity'])]
             self.graph.push(u)
         main_node = self.nodes_matcher.match("Main").first()
-        main_node['refer_vector'] = [float(main_node['basic_similarity']), float(main_node['area_similarity'])]
+        main_node['refer_vector'] = [float(1.0), float(1.0)]
         self.graph.push(main_node)
 
     # 步骤 4: 创建内存投影图
@@ -207,7 +226,7 @@ class Analysis:
         'user_cluster',
         {
         nodeProperty: 'refer_vector',
-        k: 6,
+        k: 4,
         randomSeed: 42 ,            // 固定随机种子
         writeProperty: 'clusterId'  // 结果写入属性
         }
@@ -257,6 +276,10 @@ def get_same_cluster_nodes():
     users = ana.proc7_get_nodes_in_same_cluster()
     # ana.procT_show_node_figure()
     return users
+def show_cluster_figure():
 
-# ana = Analysis()
+    ana = Analysis()
+    ana.procT_show_node_figure()
+
 # print(get_same_cluster_nodes())
+# show_cluster_figure()

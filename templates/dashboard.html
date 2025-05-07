@@ -11,12 +11,24 @@
     <!-- 引入Element Plus组件库 -->
     <script src="https://unpkg.com/element-plus"></script>
     <!-- 引入ECharts -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="{{ url_for('static', filename = 'js/echarts.js') }}"></script>
     <style>
+        /* 全局按钮样式 */
+        .el-button {
+            font-family: "微软雅黑", "Microsoft YaHei", "思源黑体", "Source Han Sans CN", "等线", sans-serif !important;
+            font-weight: 500 !important;
+        }
+
+        /* 全局小标题样式 */
+        h3, h4, h5, h6, .list-title, .el-table th, .el-card__header {
+            font-family: "思源黑体", "Source Han Sans CN", "微软雅黑", "Microsoft YaHei", "等线", sans-serif !important;
+            font-weight: 600 !important;
+        }
+
         body {
             margin: 0;
             padding: 0;
-            font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+            font-family: "等线", "思源黑体", "Source Han Sans CN", "新宋体", "NSimSun", "SimSun", "宋体", "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
         }
         .header {
             background-color: #409EFF;
@@ -24,6 +36,12 @@
             padding: 20px;
             text-align: center;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+        }
+        .header h1 {
+            font-family: "思源黑体", "Source Han Sans CN", "微软雅黑", "Microsoft YaHei", "等线", sans-serif;
+            font-weight: 600;
+            margin: 0;
+            font-size: 28px;
         }
         .main-container {
             padding: 20px;
@@ -89,9 +107,9 @@
         }
         .list-title {
             font-size: 16px;
-            font-weight: bold;
             margin-bottom: 15px;
             color: #303133;
+            letter-spacing: 0.5px;
         }
         .chart-wrapper {
             height: 50%;
@@ -103,6 +121,7 @@
         .user-link {
             text-decoration: none;
             color: #409EFF;
+            font-family: "等线", "思源黑体", "Source Han Sans CN", "微软雅黑", "Microsoft YaHei", sans-serif;
         }
         .user-link:hover {
             color: #66b1ff;
@@ -131,10 +150,12 @@
             font-size: 18px;
             font-weight: bold;
             margin-bottom: 5px;
+            font-family: "思源黑体", "Source Han Sans CN", "微软雅黑", "Microsoft YaHei", "等线", sans-serif;
         }
         .user-id {
             color: #909399;
             font-size: 14px;
+            font-family: "等线", "思源黑体", "Source Han Sans CN", "新宋体", "NSimSun", sans-serif;
         }
         .user-stats {
             display: grid;
@@ -149,19 +170,23 @@
         .stat-label {
             color: #909399;
             margin-right: 5px;
+            font-family: "等线", "思源黑体", "Source Han Sans CN", "新宋体", "NSimSun", sans-serif;
         }
         .stat-value {
             font-weight: bold;
+            font-family: "思源黑体", "Source Han Sans CN", "微软雅黑", "Microsoft YaHei", "等线", sans-serif;
         }
         .user-description {
             color: #606266;
             font-size: 14px;
             line-height: 1.5;
             margin-bottom: 10px;
+            font-family: "等线", "思源黑体", "Source Han Sans CN", "新宋体", "NSimSun", sans-serif;
         }
         .user-location {
             color: #909399;
             font-size: 14px;
+            font-family: "等线", "思源黑体", "Source Han Sans CN", "新宋体", "NSimSun", sans-serif;
         }
         .el-table {
             flex: 1;
@@ -174,9 +199,16 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            font-family: "等线", "思源黑体", "Source Han Sans CN", "新宋体", "NSimSun", sans-serif;
         }
         .el-table .description-cell {
             max-width: 300px;
+        }
+        .el-input__inner {
+            font-family: "等线", "思源黑体", "Source Han Sans CN", "新宋体", "NSimSun", sans-serif;
+        }
+        .el-message {
+            font-family: "等线", "思源黑体", "Source Han Sans CN", "微软雅黑", "Microsoft YaHei", sans-serif;
         }
     </style>
 </head>
@@ -202,7 +234,7 @@
                         <el-button 
                             type="primary" 
                             @click="handleSubmit">
-                            分析数据
+                            分析用户
                         </el-button>
                         <el-button 
                             type="danger" 
@@ -215,7 +247,7 @@
                 <!-- 用户信息卡片 -->
                 <div class="user-card" v-show="currentUser">
                     <div class="user-card-header">
-                        <img v-bind:src="currentUser && (currentUser.avatar_img || currentUser.avatar_large || 'https://weibo.com/favicon.ico')" 
+                        <img v-bind:src="currentUser && (currentUser.avatar_base64 || 'https://weibo.com/favicon.ico')" 
                              class="user-avatar" 
                              v-bind:alt="currentUser && currentUser.name">
                         <div class="user-basic-info">
@@ -253,7 +285,7 @@
                     <el-table :data="tableData" style="width: 100%" :row-style="{ height: '60px' }">
                         <el-table-column label="头像" width="60" align="center">
                             <template v-slot="scope">
-                                <img :src="scope.row.avatar_img || scope.row.avatar_large || 'https://weibo.com/favicon.ico'" 
+                                <img :src="scope.row.avatar_base64 || 'https://weibo.com/favicon.ico'" 
                                      class="user-avatar"
                                      :alt="scope.row.name">
                             </template>
@@ -298,7 +330,7 @@
                     <el-table :data="clusterData" style="width: 100%" :row-style="{ height: '60px' }">
                         <el-table-column label="头像" width="60" align="center">
                             <template v-slot="scope">
-                                <img :src="scope.row.avatar_img || scope.row.avatar_large || 'https://weibo.com/favicon.ico'" 
+                                <img :src="scope.row.avatar_base64 || 'https://weibo.com/favicon.ico'" 
                                      class="user-avatar"
                                      :alt="scope.row.name">
                             </template>
@@ -347,6 +379,23 @@
                 const currentUser = ref(null);
                 let genderChart = null;
                 let locationChart = null;
+
+                // 获取头像base64
+                const getAvatarBase64 = async (avatarUrl) => {
+                    if (!avatarUrl) return 'https://weibo.com/favicon.ico';
+                    
+                    try {
+                        const response = await fetch(`/api/avatar?url=${encodeURIComponent(avatarUrl)}`);
+                        const result = await response.json();
+                        if (result.status === 'success') {
+                            return `data:${result.data.content_type};base64,${result.data.base64}`;
+                        }
+                        return 'https://weibo.com/favicon.ico';
+                    } catch (error) {
+                        console.error('获取头像失败：', error);
+                        return 'https://weibo.com/favicon.ico';
+                    }
+                };
 
                 // 初始化图表
                 const initCharts = () => {
@@ -433,29 +482,41 @@
                 };
 
                 // 更新当前用户信息
-                const updateMainData = () => {
-                    fetch(`/api/main_data`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data) {
-                                currentUser.value = data;
-                            } else {
-                                currentUser.value = null;
+                const updateMainData = async () => {
+                    try {
+                        const response = await fetch(`/api/main_data`);
+                        const data = await response.json();
+                        if (data) {
+                            if (data.avatar_img || data.avatar_large) {
+                                data.avatar_base64 = await getAvatarBase64(data.avatar_img || data.avatar_large);
                             }
-                        })
-                        .catch(error => {
-                            console.error('获取用户数据失败：', error);
+                            currentUser.value = data;
+                        } else {
                             currentUser.value = null;
-                        });
+                        }
+                    } catch (error) {
+                        console.error('获取用户数据失败：', error);
+                        currentUser.value = null;
+                    }
                 };
                 
                 // 更新用户关注列表信息
-                const updateTargetData = () => {
-                    fetch(`/api/target_data`)
-                        .then(response => response.json())
-                        .then(data => {
+                const updateTargetData = async () => {
+                    try {
+                        const response = await fetch(`/api/target_data`);
+                        const data = await response.json();
+                        if (data) {
+                            // 为每个用户获取头像base64
+                            for (const user of data) {
+                                if (user.avatar_img || user.avatar_large) {
+                                    user.avatar_base64 = await getAvatarBase64(user.avatar_img || user.avatar_large);
+                                }
+                            }
                             tableData.value = data;
-                        });
+                        }
+                    } catch (error) {
+                        console.error('获取用户数据失败：', error);
+                    }
                 };
                 // 更新图表数据
                 const updateCharts = (data) => {
@@ -503,30 +564,33 @@
                 };
 
                 // 触发聚类分析
-                const triggerClusterAnalysis = () => {
-
+                const triggerClusterAnalysis = async () => {
                     isClusterLoading.value = true;
                     ElementPlus.ElMessage.info('正在获取聚类数据...');
 
-                    fetch(`/api/cluster_data`)
-                        .then(response => response.json())
-                        .then(clusterNodes => {
-                            if (clusterNodes && clusterNodes.length > 0) {
-                                clusterData.value = clusterNodes;
-                                // 更新图表数据
-                                updateCharts(clusterNodes);
-                                ElementPlus.ElMessage.success('聚类数据已更新！');
-                            } else {
-                                ElementPlus.ElMessage.warning('未找到聚类数据');
+                    try {
+                        const response = await fetch(`/api/cluster_data`);
+                        const clusterNodes = await response.json();
+                        if (clusterNodes && clusterNodes.length > 0) {
+                            // 为每个用户获取头像base64
+                            for (const user of clusterNodes) {
+                                if (user.avatar_img || user.avatar_large) {
+                                    user.avatar_base64 = await getAvatarBase64(user.avatar_img || user.avatar_large);
+                                }
                             }
-                        })
-                        .catch(error => {
-                            console.error('获取聚类数据失败：', error);
-                            ElementPlus.ElMessage.error('获取聚类数据失败');
-                        })
-                        .finally(() => {
-                            isClusterLoading.value = false;
-                        });
+                            clusterData.value = clusterNodes;
+                            // 更新图表数据
+                            updateCharts(clusterNodes);
+                            ElementPlus.ElMessage.success('聚类数据已更新！');
+                        } else {
+                            ElementPlus.ElMessage.warning('未找到聚类数据');
+                        }
+                    } catch (error) {
+                        console.error('获取聚类数据失败：', error);
+                        ElementPlus.ElMessage.error('获取聚类数据失败');
+                    } finally {
+                        isClusterLoading.value = false;
+                    }
                 };
 
                 // 处理提交
@@ -551,26 +615,45 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.task_id) {
-                            // 开始轮询Neo4j数据
-                            const pollInterval = setInterval(() => {
-                                fetch(`/api/target_data`)
-                                    .then(response => response.json())
-                                    .then(userData => {
-                                        if (userData) {
-                                            // 更新表格数据
-                                            tableData.value = userData;
-                                            // 更新图表数据
-                                            updateCharts(userData);
-                                            
-                                            // 如果数据更新了，显示成功消息并停止轮询
-                                            ElementPlus.ElMessage.success('数据已更新！');
-                                            clearInterval(pollInterval);
-                                            window.currentPollInterval = null;
+                            let isFirstDataReceived = false;
+                            let isSpiderCompleted = false;
+
+                            // 开始轮询
+                            const pollInterval = setInterval(async () => {
+                                try {
+                                    // 1. 检查并更新目标用户数据
+                                    if (!isFirstDataReceived) {
+                                        const targetResponse = await fetch(`/api/target_data`);
+                                        const targetData = await targetResponse.json();
+                                        if (!isFirstDataReceived && targetData && targetData.length > 0) {
+                                            // 为每个用户获取头像base64
+                                            for (const user of targetData) {
+                                                if (user.avatar_img || user.avatar_large) {
+                                                    user.avatar_base64 = await getAvatarBase64(user.avatar_img || user.avatar_large);
+                                                }
+                                            }
+                                            updateMainData();
+                                            tableData.value = targetData;
+                                            isFirstDataReceived = true;
+                                            ElementPlus.ElMessage.success('目标用户数据已更新！');
                                         }
-                                    })
-                                    .catch(error => {
-                                        console.error('获取数据失败：', error);
-                                    });
+                                    }
+
+                                    // 2. 检查爬虫状态
+                                    const statusResponse = await fetch('/api/spider_status');
+                                    const statusData = await statusResponse.json();
+                                    console.log(statusData)
+                                    if (statusData.status == 'success' && isFirstDataReceived) {  // 爬虫已完成
+                                        isSpiderCompleted = true;
+                                        // 更新聚类数据和图表
+                                        await triggerClusterAnalysis();
+                                        ElementPlus.ElMessage.success('数据分析完成！');
+                                        clearInterval(pollInterval);
+                                        window.currentPollInterval = null;
+                                    }
+                                } catch (error) {
+                                    console.error('轮询数据失败：', error);
+                                }
                             }, 1000); // 每秒轮询一次
 
                             // 存储轮询间隔ID，以便在需要时清除

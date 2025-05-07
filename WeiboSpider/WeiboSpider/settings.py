@@ -20,7 +20,7 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-# CONCURRENT_REQUESTS = 32
+CONCURRENT_REQUESTS = 32
 
 
 # 基础重试配置
@@ -32,10 +32,13 @@ RETRY_PRIORITY_ADJUST = +1  # 每次重试优先级调整（避免重复请求�
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 3
+
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
+DOWNLOAD_DELAY = 0.5  # 下载延迟
+RANDOMIZE_DOWNLOAD_DELAY = True  # 随机化下载延迟
+DOWNLOAD_TIMEOUT = 15  # 下载超时时间
 
 # Disable cookies (enabled by default)
 COOKIES_ENABLED = False
@@ -68,9 +71,15 @@ DOWNLOADER_MIDDLEWARES = {
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
-# EXTENSIONS = {
-#    "scrapy.extensions.telnet.TelnetConsole": None,
-# }
+EXTENSIONS = {
+    'scrapy.extensions.telnet.TelnetConsole': None,
+    'scrapy.extensions.corestats.CoreStats': 0,
+    'scrapy.extensions.memusage.MemoryUsage': 0,
+    'scrapy.extensions.logstats.LogStats': 0,
+    'scrapy.extensions.feedexport.FeedExporter': 0,
+    'scrapy.extensions.spiderstate.SpiderState': 0,
+    'scrapy.extensions.throttle.AutoThrottle': 0,
+}
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
@@ -80,24 +89,19 @@ ITEM_PIPELINES = {
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
-# AUTOTHROTTLE_ENABLED = True
-# The initial download delay
-# AUTOTHROTTLE_START_DELAY = 5
-# The maximum download delay to be set in case of high latencies
-# AUTOTHROTTLE_MAX_DELAY = 60
-# The average number of requests Scrapy should be sending in parallel to
-# each remote server
-# AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
-# Enable showing throttling stats for every response received:
-# AUTOTHROTTLE_DEBUG = False
+AUTOTHROTTLE_ENABLED = True
+AUTOTHROTTLE_START_DELAY = 5
+AUTOTHROTTLE_MAX_DELAY = 60
+AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
+AUTOTHROTTLE_DEBUG = False
 
 # Enable and configure HTTP caching (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
-# HTTPCACHE_ENABLED = True
-# HTTPCACHE_EXPIRATION_SECS = 0
-# HTTPCACHE_DIR = "httpcache"
-# HTTPCACHE_IGNORE_HTTP_CODES = []
-# HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
+HTTPCACHE_ENABLED = True
+HTTPCACHE_EXPIRATION_SECS = 0
+HTTPCACHE_DIR = 'httpcache'
+HTTPCACHE_IGNORE_HTTP_CODES = []
+HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 # Set settings whose default value is deprecated to a future-proof value
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
@@ -112,3 +116,30 @@ SCHEDULER = "scrapy_redis.scheduler.Scheduler"
 DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
 SCHEDULER_PERSIST = True
 SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.SpiderPriorityQueue'
+
+# 重试设置
+RETRY_ENABLED = True  # 启用重试
+RETRY_TIMES = 3  # 重试次数
+RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429]  # 需要重试的HTTP状态码
+
+# 重定向设置
+REDIRECT_ENABLED = True  # 允许重定向
+REDIRECT_MAX_TIMES = 5  # 最大重定向次数
+
+# 其他设置
+AJAXCRAWL_ENABLED = True  # 启用AJAX爬取
+REACTOR_THREADPOOL_MAXSIZE = 20  # 线程池大小
+DNS_TIMEOUT = 10  # DNS超时时间
+
+# 日志设置
+LOG_LEVEL = 'INFO'  # 日志级别
+LOG_FORMAT = '%(asctime)s [%(name)s] %(levelname)s: %(message)s'  # 日志格式
+
+# 启用内存使用限制
+MEMUSAGE_ENABLED = True
+MEMUSAGE_LIMIT_MB = 2048
+MEMUSAGE_WARNING_MB = 1536
+
+# 启用统计信息
+STATS_CLASS = 'scrapy.statscollectors.MemoryStatsCollector'
+STATS_DUMP = True

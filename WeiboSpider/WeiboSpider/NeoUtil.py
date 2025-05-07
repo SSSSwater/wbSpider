@@ -44,7 +44,7 @@ class NeoUtil:
         info = get_info(id)['data']['user']
         cls.main_node = Node('Main', id=id, name=info['screen_name'], gender=info['gender'],
                              followers_count=info['followers_count'], location=info['location'],
-                             description=info['description'], avatar_img=info['avatar_hd'])
+                             description=info['description'], avatar_img=info['avatar_hd'], statuses_count=info['statuses_count'], friends_count=info['friends_count'])
         cls.graph.create(cls.main_node)
 
     @classmethod
