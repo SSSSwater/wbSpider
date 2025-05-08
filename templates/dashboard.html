@@ -10,6 +10,8 @@
     <script src="https://unpkg.com/vue@3"></script>
     <!-- 引入Element Plus组件库 -->
     <script src="https://unpkg.com/element-plus"></script>
+    <!-- 引入Axios -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <!-- 引入ECharts -->
     <script src="{{ url_for('static', filename = 'js/echarts.js') }}"></script>
     <style>
@@ -233,8 +235,9 @@
                     <div class="button-group">
                         <el-button 
                             type="primary" 
-                            @click="handleSubmit">
-                            分析用户
+                            @click="handleSubmit"
+                            :disabled="isAnalyzing"
+                            v-text="analyzeButtonText">
                         </el-button>
                         <el-button 
                             type="danger" 
@@ -290,8 +293,8 @@
                                      :alt="scope.row.name">
                             </template>
                         </el-table-column>
-                        <el-table-column prop="id" label="ID" width="80"></el-table-column>
                         <el-table-column prop="name" label="用户名" width="120"></el-table-column>
+                        <el-table-column prop="friends_count" label="关注数" width="100"></el-table-column>
                         <el-table-column prop="followers_count" label="粉丝数" width="100"></el-table-column>
                         <el-table-column prop="gender" label="性别" width="60"></el-table-column>
                         <el-table-column prop="location" label="地区" width="100"></el-table-column>
@@ -322,8 +325,8 @@
                     <el-button 
                         type="primary" 
                         @click="triggerClusterAnalysis"
-                        :loading="isClusterLoading">
-                        更新聚类数据
+                        :loading="isClusterLoading"
+                        v-text="clusterButtonText">
                     </el-button>
                 </div>
                 <div class="list-container">
@@ -335,7 +338,6 @@
                                      :alt="scope.row.name">
                             </template>
                         </el-table-column>
-                        <el-table-column prop="id" label="ID" width="80"></el-table-column>
                         <el-table-column prop="name" label="用户名" width="120"></el-table-column>
                         <el-table-column prop="followers_count" label="粉丝数" width="100"></el-table-column>
                         <el-table-column prop="gender" label="性别" width="60"></el-table-column>
@@ -364,6 +366,7 @@
             <div class="right-panel">
                 <div class="chart-wrapper" id="genderChart"></div>
                 <div class="chart-wrapper" id="locationChart"></div>
+                <div class="chart-wrapper" id="relationChart"></div>
             </div>
         </div>
     </div>
@@ -376,17 +379,22 @@
                 const tableData = ref([]);
                 const clusterData = ref([]);
                 const isClusterLoading = ref(false);
+                const isSpiderCompleted = ref(false);
+                const clusterButtonText = ref('更新聚类数据');
+                const isAnalyzing = ref(false);
+                const analyzeButtonText = ref('分析用户');
                 const currentUser = ref(null);
                 let genderChart = null;
                 let locationChart = null;
+                let relationChart = null;
 
                 // 获取头像base64
                 const getAvatarBase64 = async (avatarUrl) => {
                     if (!avatarUrl) return 'https://weibo.com/favicon.ico';
                     
                     try {
-                        const response = await fetch(`/api/avatar?url=${encodeURIComponent(avatarUrl)}`);
-                        const result = await response.json();
+                        const response = await axios.get(`/api/avatar?url=${encodeURIComponent(avatarUrl)}`);
+                        const result = response.data;
                         if (result.status === 'success') {
                             return `data:${result.data.content_type};base64,${result.data.base64}`;
                         }
@@ -397,12 +405,92 @@
                     }
                 };
 
+                // 异步加载单个用户头像
+                const loadUserAvatar = async (user, dataArray) => {
+                    try {
+                        if (!user || !user.avatar_img && !user.avatar_large) {
+                            user.avatar_base64 = 'https://weibo.com/favicon.ico';
+                            return;
+                        }
+
+                        const avatarBase64 = await getAvatarBase64(user.avatar_img || user.avatar_large);
+                        // 使用Vue的响应式更新
+                        if (dataArray) {
+                            const index = dataArray.findIndex(item => item.id === user.id);
+                            if (index !== -1) {
+                                dataArray[index] = {
+                                    ...dataArray[index],
+                                    avatar_base64: avatarBase64
+                                };
+                            }
+                        } else {
+                            user.avatar_base64 = avatarBase64;
+                        }
+                    } catch (error) {
+                        console.error('加载用户头像失败：', error);
+                        user.avatar_base64 = 'https://weibo.com/favicon.ico';
+                    }
+                };
+
                 // 初始化图表
                 const initCharts = () => {
                     const genderChartDom = document.getElementById('genderChart');
                     const locationChartDom = document.getElementById('locationChart');
+                    const relationChartDom = document.getElementById('relationChart');
                     genderChart = echarts.init(genderChartDom);
                     locationChart = echarts.init(locationChartDom);
+                    relationChart = echarts.init(relationChartDom);
+
+                    // 关系图配置
+                    const relationOption = {
+                        title: {
+                            text: '用户关注关系图',
+                            left: 'center'
+                        },
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: '{b}'
+                        },
+                        legend: {
+                            orient: 'horizontal',
+                            bottom: 'bottom',
+                            data: ['当前用户', '关注用户']
+                        },
+                        series: [{
+                            type: 'graph',
+                            layout: 'force',
+                            force: {
+                                repulsion: 100,
+                                edgeLength: 100
+                            },
+                            roam: true,
+                            label: {
+                                show: true,
+                                position: 'right'
+                            },
+                            data: [],
+                            categories: [
+                                { name: '当前用户' },
+                                { name: '关注用户' }
+                            ],
+                            edges: [],
+                            edgeSymbol: ['none', 'arrow'],
+                            edgeSymbolSize: [0, 8],
+                            lineStyle: {
+                                color: '#409EFF',
+                                curveness: 0.3,
+                                width: 2
+                            },
+                            emphasis: {
+                                focus: 'adjacency',
+                                lineStyle: {
+                                    width: 4
+                                }
+                            }
+                        }]
+                    };
+
+                    relationChart.setOption(relationOption);
 
                     // 性别分布图表配置
                     const genderOption = {
@@ -477,20 +565,94 @@
                     locationChart.setOption(locationOption);
 
                     
-                    updateMainData();
                     updateTargetData();
+                };
+
+                // 更新关系图数据
+                const updateRelationChart = () => {
+                    if (!currentUser.value || !tableData.value.length) return;
+
+                    const nodes = [];
+                    const edges = [];
+
+                    // 添加当前用户节点
+                    nodes.push({
+                        id: currentUser.value.id,
+                        name: currentUser.value.name,
+                        symbolSize: 50,
+                        category: 0,
+                        itemStyle: {
+                            color: '#409EFF'
+                        }
+                    });
+
+                    // 添加关注用户节点
+                    tableData.value.forEach(user => {
+                        nodes.push({
+                            id: user.id,
+                            name: user.name,
+                            symbolSize: 30,
+                            category: 1,
+                            itemStyle: {
+                                color: '#67C23A'
+                            }
+                        });
+
+                        // 添加边（从当前用户指向关注用户）
+                        edges.push({
+                            source: currentUser.value.id,
+                            target: user.id
+                        });
+                    });
+
+                    relationChart.setOption({
+                        series: [{
+                            data: nodes,
+                            edges: edges
+                        }]
+                    });
+                };
+
+                // 更新用户关注列表信息
+                const updateTargetData = async () => {
+                    try {
+                        const response = await axios.get(`/api/target_data`);
+                        const data = response.data;
+                        if (data) {
+                            // 先显示数据
+                            tableData.value = data.map(user => ({
+                                ...user,
+                                avatar_base64: 'https://weibo.com/favicon.ico'
+                            }));
+                            
+                            // 逐个加载用户头像
+                            for (const user of data) {
+                                await loadUserAvatar(user, tableData.value);
+                            }
+                            // 更新关系图
+                            updateRelationChart();
+                        }
+                    } catch (error) {
+                        console.error('获取用户数据失败：', error);
+                    }
                 };
 
                 // 更新当前用户信息
                 const updateMainData = async () => {
                     try {
-                        const response = await fetch(`/api/main_data`);
-                        const data = await response.json();
+                        const response = await axios.get(`/api/main_data`);
+                        const data = response.data;
                         if (data) {
+                            currentUser.value = {
+                                ...data,
+                                avatar_base64: 'https://weibo.com/favicon.ico'
+                            };
+                            // 异步加载头像
                             if (data.avatar_img || data.avatar_large) {
-                                data.avatar_base64 = await getAvatarBase64(data.avatar_img || data.avatar_large);
+                                await loadUserAvatar(currentUser.value);
                             }
-                            currentUser.value = data;
+                            // 更新关系图
+                            updateRelationChart();
                         } else {
                             currentUser.value = null;
                         }
@@ -499,31 +661,13 @@
                         currentUser.value = null;
                     }
                 };
-                
-                // 更新用户关注列表信息
-                const updateTargetData = async () => {
-                    try {
-                        const response = await fetch(`/api/target_data`);
-                        const data = await response.json();
-                        if (data) {
-                            // 为每个用户获取头像base64
-                            for (const user of data) {
-                                if (user.avatar_img || user.avatar_large) {
-                                    user.avatar_base64 = await getAvatarBase64(user.avatar_img || user.avatar_large);
-                                }
-                            }
-                            tableData.value = data;
-                        }
-                    } catch (error) {
-                        console.error('获取用户数据失败：', error);
-                    }
-                };
+
                 // 更新图表数据
                 const updateCharts = (data) => {
                     // 获取统计数据
-                    fetch('/api/user_stats')
-                        .then(response => response.json())
-                        .then(result => {
+                    axios.get('/api/user_stats')
+                        .then(response => {
+                            const result = response.data;
                             if (result.status === 'success') {
                                 const stats = result.data;
                                 
@@ -569,16 +713,15 @@
                     ElementPlus.ElMessage.info('正在获取聚类数据...');
 
                     try {
-                        const response = await fetch(`/api/cluster_data`);
-                        const clusterNodes = await response.json();
+                        const response = await axios.get(`/api/cluster_data`);
+                        const clusterNodes = response.data;
                         if (clusterNodes && clusterNodes.length > 0) {
-                            // 为每个用户获取头像base64
-                            for (const user of clusterNodes) {
-                                if (user.avatar_img || user.avatar_large) {
-                                    user.avatar_base64 = await getAvatarBase64(user.avatar_img || user.avatar_large);
-                                }
-                            }
+                            // 先显示数据
                             clusterData.value = clusterNodes;
+                            // 逐个加载用户头像
+                            for (const user of clusterNodes) {
+                                await loadUserAvatar(user, clusterData.value);
+                            }
                             // 更新图表数据
                             updateCharts(clusterNodes);
                             ElementPlus.ElMessage.success('聚类数据已更新！');
@@ -593,6 +736,39 @@
                     }
                 };
 
+                // 检查爬虫状态
+                const checkSpiderStatus = async () => {
+                    try {
+                        const response = await axios.get('/api/spider_status');
+                        const statusData = response.data;
+                        console.log(statusData);
+                        // 更新按钮文字
+                        analyzeButtonText.value = statusData.status;
+                        
+                        if (statusData.data === '0') {  // 爬虫已完成
+                            // 清除轮询
+                            if (window.currentPollInterval) {
+                                clearInterval(window.currentPollInterval);
+                                window.currentPollInterval = null;
+                            }
+                            // 更新聚类数据和图表
+                            isSpiderCompleted.value = true;
+                            isAnalyzing.value = false;
+                            await triggerClusterAnalysis();
+                            ElementPlus.ElMessage.success('数据分析完成！');
+                        } else if (statusData.data === '2') {  // 目标用户数据已更新
+                            updateMainData();
+                            updateTargetData();
+                        } else {
+                            isSpiderCompleted.value = false;
+                        }
+                    } catch (error) {
+                        console.error('检查爬虫状态失败：', error);
+                        isSpiderCompleted.value = false;
+                        isAnalyzing.value = false;
+                    }
+                };
+
                 // 处理提交
                 const handleSubmit = () => {
                     if (!inputValue.value) {
@@ -600,69 +776,49 @@
                         return;
                     }
 
+                    // 重置状态
+                    isSpiderCompleted.value = false;
+                    isAnalyzing.value = true;
+                    analyzeButtonText.value = '等待爬虫完成...';
+
                     // 显示加载状态
                     ElementPlus.ElMessage.info('正在分析数据，请稍候...');
                     
-                    updateMainData();
                     
                     // 发送初始请求启动爬虫
-                    fetch(`/api/analyze/${inputValue.value}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.task_id) {
-                            let isFirstDataReceived = false;
-                            let isSpiderCompleted = false;
+                    axios.post(`/api/analyze/${inputValue.value}`)
+                        .then(response => {
+                            const data = response.data;
+                            if (data.task_id) {
+                                let isFirstDataReceived = false;
 
-                            // 开始轮询
-                            const pollInterval = setInterval(async () => {
-                                try {
-                                    // 1. 检查并更新目标用户数据
-                                    if (!isFirstDataReceived) {
-                                        const targetResponse = await fetch(`/api/target_data`);
-                                        const targetData = await targetResponse.json();
-                                        if (!isFirstDataReceived && targetData && targetData.length > 0) {
-                                            // 为每个用户获取头像base64
-                                            for (const user of targetData) {
-                                                if (user.avatar_img || user.avatar_large) {
-                                                    user.avatar_base64 = await getAvatarBase64(user.avatar_img || user.avatar_large);
-                                                }
-                                            }
-                                            updateMainData();
-                                            tableData.value = targetData;
+                                // 开始轮询
+                                const pollInterval = setInterval(async () => {
+                                    try {
+                                        // 1. 检查并更新目标用户数据
+                                        if (!isFirstDataReceived) {
+                                            await updateMainData();
                                             isFirstDataReceived = true;
-                                            ElementPlus.ElMessage.success('目标用户数据已更新！');
+                                            ElementPlus.ElMessage.success('用户数据已更新！');
                                         }
-                                    }
 
-                                    // 2. 检查爬虫状态
-                                    const statusResponse = await fetch('/api/spider_status');
-                                    const statusData = await statusResponse.json();
-                                    console.log(statusData)
-                                    if (statusData.status == 'success' && isFirstDataReceived) {  // 爬虫已完成
-                                        isSpiderCompleted = true;
-                                        // 更新聚类数据和图表
-                                        await triggerClusterAnalysis();
-                                        ElementPlus.ElMessage.success('数据分析完成！');
-                                        clearInterval(pollInterval);
-                                        window.currentPollInterval = null;
+                                        // 2. 检查爬虫状态
+                                        await checkSpiderStatus();
+                                    } catch (error) {
+                                        console.error('轮询数据失败：', error);
                                     }
-                                } catch (error) {
-                                    console.error('轮询数据失败：', error);
-                                }
-                            }, 1000); // 每秒轮询一次
+                                }, 1000); // 每秒轮询一次
 
-                            // 存储轮询间隔ID，以便在需要时清除
-                            window.currentPollInterval = pollInterval;
-                        }
-                    })
-                    .catch(error => {
-                        ElementPlus.ElMessage.error('请求失败：' + error);
-                    });
+                                // 存储轮询间隔ID，以便在需要时清除
+                                window.currentPollInterval = pollInterval;
+                            }
+                        })
+                        .catch(error => {
+                            ElementPlus.ElMessage.error('请求失败：' + error);
+                            isSpiderCompleted.value = false;
+                            isAnalyzing.value = false;
+                            analyzeButtonText.value = '分析用户';
+                        });
                 };
 
                 // 停止所有爬虫
@@ -673,23 +829,20 @@
                         window.currentPollInterval = null;
                     }
 
-                    fetch('/api/stop_all_spiders', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            ElementPlus.ElMessage.success(data.message);
-                        } else {
-                            ElementPlus.ElMessage.error(data.error || '停止爬虫失败');
-                        }
-                    })
-                    .catch(error => {
-                        ElementPlus.ElMessage.error('操作失败：' + error);
-                    });
+                    axios.post('/api/stop_all_spiders')
+                        .then(response => {
+                            const data = response.data;
+                            if (data.status === 'success') {
+                                ElementPlus.ElMessage.success(data.message);
+                                isAnalyzing.value = false;
+                                analyzeButtonText.value = '分析用户';
+                            } else {
+                                ElementPlus.ElMessage.error(data.error || '停止爬虫失败');
+                            }
+                        })
+                        .catch(error => {
+                            ElementPlus.ElMessage.error('操作失败：' + error);
+                        });
                 };
 
                 onMounted(() => {
@@ -698,6 +851,7 @@
                     window.addEventListener('resize', () => {
                         genderChart && genderChart.resize();
                         locationChart && locationChart.resize();
+                        relationChart && relationChart.resize();
                     });
                 });
 
@@ -706,6 +860,10 @@
                     tableData,
                     clusterData,
                     isClusterLoading,
+                    isSpiderCompleted,
+                    clusterButtonText,
+                    isAnalyzing,
+                    analyzeButtonText,
                     currentUser,
                     handleSubmit,
                     triggerClusterAnalysis,

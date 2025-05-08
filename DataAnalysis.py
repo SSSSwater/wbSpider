@@ -122,34 +122,39 @@ class Analysis:
         self.min_fans = min(u['followers_count'] for u in users if u['id'] != self.targetId and u['followers_count'])
         self.max_fans = max(u['followers_count'] for u in users if u['id'] != self.targetId and u['followers_count'])
 
+        for user in users:
+            if user['id'] == self.targetId:
+                user['basic_similarity'] = 1
+                user['area_similarity'] = 1
+                self.graph.push(user)
+                continue
+            basic_similarity, area_similarity = self._calculate_similarity_batch(user,targets)
+            user['basic_similarity'] = basic_similarity
+            user['area_similarity'] = area_similarity
+            self.graph.push(user)
         # 使用线程池并行处理
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = []
-            for user in users:
-                if user['id'] == self.targetId:
-                    user['basic_similarity'] = 1
-                    user['area_similarity'] = 1
-                    self.graph.push(user)
-                    continue
-                futures.append(executor.submit(self._calculate_similarity_batch, user, targets))
-            # 批量更新数据库
-            batch_size = 100
-            updates = []
-            for i, future in enumerate(futures):
-                basic_similarity, area_similarity = future.result()
-                user = users[i]
-                user['basic_similarity'] = basic_similarity
-                user['area_similarity'] = area_similarity
-                updates.append(user)
-                
-                if len(updates) >= batch_size:
-                    for u in updates:
-                        self.graph.push(u)
-                    updates = []
-            
-            if updates:
-                for u in updates:
-                    self.graph.push(u)
+        # with ThreadPoolExecutor(max_workers=4) as executor:
+        #     futures = []
+        #
+        #         futures.append(executor.submit(self._calculate_similarity_batch, user, targets))
+        #     # 批量更新数据库
+        #     batch_size = 100
+        #     updates = []
+        #     for i, future in enumerate(futures):
+        #         basic_similarity, area_similarity = future.result()
+        #         user = users[i]
+        #         user['basic_similarity'] = basic_similarity
+        #         user['area_similarity'] = area_similarity
+        #         updates.append(user)
+        #
+        #         if len(updates) >= batch_size:
+        #             for u in updates:
+        #                 self.graph.push(u)
+        #             updates = []
+        #
+        #     if updates:
+        #         for u in updates:
+        #             self.graph.push(u)
 
     # 步骤 2: 计算图结构距离（关注关系的最短路径）
     def proc2_calculate_shortest_path(self):
@@ -194,7 +199,10 @@ class Analysis:
     def proc3_calculate_vector(self):
         users = self.nodes_matcher.match("User")
         for u in users:
-            u['refer_vector'] = [float(u['basic_similarity']), float(u['area_similarity'])]
+            if not u['basic_similarity']:
+                print(u['name'])
+
+            u['refer_vector'] = [float(u['basic_similarity']) ,float(u['area_similarity'])]
             self.graph.push(u)
         main_node = self.nodes_matcher.match("Main").first()
         main_node['refer_vector'] = [float(1.0), float(1.0)]

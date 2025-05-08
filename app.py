@@ -1,5 +1,6 @@
 import base64
 import os
+import struct
 import subprocess
 import threading
 import uuid
@@ -147,12 +148,17 @@ def get_spider_status():
     if not RedisQueueManager.get_status():
         return jsonify({'status': 'none'})
     else:
-        res = int.from_bytes(RedisQueueManager.get_status(),byteorder='big')
-        print(res)
-        if res == 1:
-            return jsonify({'status': 'processing', 'data': str(RedisQueueManager.get_status())})
+        status = RedisQueueManager.get_status()
+
+
+        if status == "1":
+            return jsonify({'status': '爬虫启动中', 'data': RedisQueueManager.get_status()})
+        elif status == "2":
+            return jsonify({'status': '爬取目标用户中', 'data': RedisQueueManager.get_status()})
+        elif status == "3":
+            return jsonify({'status': '爬取可能的相似用户中', 'data': RedisQueueManager.get_status()})
         else:
-            return jsonify({'status': 'success', 'data': str(RedisQueueManager.get_status())})
+            return jsonify({'status': '爬虫已结束', 'data': RedisQueueManager.get_status()})
 @app.route('/api/stop_spider/<task_id>', methods=['POST'])
 def stop_spider(task_id):
     """停止指定的爬虫任务"""
