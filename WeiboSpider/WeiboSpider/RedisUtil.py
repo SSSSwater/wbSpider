@@ -3,7 +3,7 @@ import redis
 
 class RedisQueueManager:
 
-    redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+    redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
 
     @classmethod
     def add_task(cls, task, priority):
@@ -25,5 +25,3 @@ class RedisQueueManager:
     @classmethod
     def clear_task(cls):
         cls.redis_client.flushdb()
-
-RedisQueueManager.clear_task()

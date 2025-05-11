@@ -48,10 +48,11 @@ class WeiboSpider(RedisSpider):
         'LOG_LEVEL': 'INFO',  # 日志级别
     }
 
-    r = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
-    
     # 配置日志
     configure_logging(install_root_handler=False)
+
+    with open('scrapy_log.txt','w') as f:
+        f.write(f"日志初始化")
     logging.basicConfig(
         filename='scrapy_log.txt',
         format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
@@ -78,7 +79,6 @@ class WeiboSpider(RedisSpider):
         """请求被调度时的处理"""
         self.request_count += 1
         logging.info(f"请求已调度: {request.url}")
-        RedisQueueManager.set_status(1)
 
     def response_received(self, response, request, spider):
         """收到响应时的处理"""
@@ -91,34 +91,38 @@ class WeiboSpider(RedisSpider):
             self.is_idle = True
             self.idle_count = 0
             logging.info("爬虫进入空闲状态")
-            RedisQueueManager.set_status(0)
 
         self.idle_count += 1
         logging.info(f"爬虫空闲次数: {self.idle_count}")
 
         # 检查是否所有请求都已完成
-        if self.request_count > 0 and self.request_count == self.completed_count:
-            logging.info("所有请求已完成")
-            if self.idle_count >= self.MAX_IDLE_COUNT:
-                logging.info("爬虫任务完成，准备关闭")
-                self.crawler.engine.close_spider(self, '任务完成')
+        # if self.request_count > 0 and self.request_count == self.completed_count:
+        #     logging.info("所有请求已完成")
+        #     if self.idle_count >= self.MAX_IDLE_COUNT:
+        #         logging.info("爬虫任务完成，准备关闭")
+        #         self.crawler.engine.close_spider(self, '任务完成')
 
     def start_requests(self):
         """初始化爬虫，从初始用户开始"""
         logging.info("开始初始化爬虫")
         RedisQueueManager.clear_task()
+        RedisQueueManager.set_status(1)
         NeoUtil.add_main_node(self.user_id)
-        
+
+        RedisQueueManager.set_status(2)
         # 获取初始用户列表
         start_list = get_following_all(self.user_id)
         logging.info(f"获取到 {len(start_list)} 个初始用户")
         
         # 批量添加用户到Neo4j
+
+        for u in start_list:
+            NeoUtil.try_add_node(u)
+        RedisQueueManager.set_status(3)
         batch_size = 100
         for i in range(0, len(start_list), batch_size):
             batch = start_list[i:i + batch_size]
             for u in batch:
-                NeoUtil.try_add_node(u)
                 logging.info(f"开始爬取用户 {u['name']}({u['id']}) 的粉丝列表")
                 yield scrapy.Request(
                     url=self.url_sample.format(1, u['id']),
@@ -221,6 +225,7 @@ class WeiboSpider(RedisSpider):
         """爬虫关闭时的处理"""
         end_time = time.time()
         duration = end_time - self.start_time
+        RedisQueueManager.set_status(0)
         logging.info(f"爬虫运行完成，总耗时: {duration:.2f}秒")
         logging.info(f"关闭原因: {reason}")
         logging.info(f"总请求数: {self.request_count}")
