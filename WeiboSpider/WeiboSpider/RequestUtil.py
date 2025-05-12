@@ -2,9 +2,9 @@ import json
 import os
 
 import requests
+from .items import json2item
 from fake_useragent import UserAgent
 
-from .items import json2item
 
 ua = UserAgent()
 def get_fake_weibo_UA():
@@ -21,17 +21,16 @@ headers_p = {'authority': 'www.weibo.com',
                }
 def test_mobile(page,uid):
     headers = {'authority': 'weibo.com',
-               # 'User-Agent': "Mozilla/5.0 (Linux; Android 14; 23013RK75C Build/UKQ1.230804.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/131.0.6778.260 Mobile Safari/537.36 Weibo (Xiaomi-Redmi K60__weibo__15.2.0__android__android14)",
-               'User-Agent': get_fake_weibo_UA(),
+               'User-Agent': "Mozilla/5.0 (Linux; Android 14; 23013RK75C Build/UKQ1.230804.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/131.0.6778.260 Mobile Safari/537.36 Weibo (Xiaomi-Redmi K60__weibo__15.2.0__android__android14)",
                'referer': 'https://weibo.com/u/' + str(id),
                'cookie': cookies_m,
                'accept':
                    'application/json,text/plain,*/*'
                }
     response = requests.get("https://m.weibo.cn/c/fans/followers?page={}&uid={}&cursor=-1&count=20".format(page,uid), headers=headers)
-    print(response.content)
-    # datas = json.loads(response.text)['data']['list']['users']
+    datas = json.loads(response.text)['data']['list']['users']
     # print(datas)
+    print(datas)
 
 
 
@@ -39,8 +38,10 @@ def get_following_page(id, page):
     first_get_sample = "https://www.weibo.com/ajax/friendships/friends?uid={}&page={}"
 
     response = requests.get(first_get_sample.format(id,page), headers=headers_p).json()
-    print(response)
-    return response['users']
+    if response['ok'] == 1 and response['users']:
+        return response['users']
+    else:
+        return None
 def get_following_all(id):
     cur = 1
     have_next = True
@@ -54,10 +55,21 @@ def get_following_all(id):
             all_list.append(item)
         cur+=1
     return all_list
+def get_following_all_only_uid(id):
+    cur = 1
+    have_next = True
+    all_list = []
+    while True:
+        cur_page = get_following_page(id, cur)
+        if not cur_page:
+            break;
+        for u in cur_page:
+            all_list.append(u['id'])
+        cur+=1
+    return all_list
 def get_info(id):
     response = requests.get("https://www.weibo.com/ajax/profile/info?uid={}".format(id), headers=headers_p).json()
     return  response
 
 # test_mobile(10,5136362277)
-# print(get_fake_weibo_UA())
-# print(get_following_page(5920136112,1))
+print(get_following_all_only_uid(2607381560))

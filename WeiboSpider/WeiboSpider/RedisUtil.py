@@ -25,5 +25,3 @@ class RedisQueueManager:
     @classmethod
     def clear_task(cls):
         cls.redis_client.flushdb()
-
-RedisQueueManager.clear_task()

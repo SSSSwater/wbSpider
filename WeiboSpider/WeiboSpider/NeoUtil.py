@@ -48,25 +48,30 @@ class NeoUtil:
         cls.graph.create(cls.main_node)
 
     @classmethod
+    # 添加item到图中
     def try_add_node(cls, item):
-        if item['domain'] != -1:
+        # 判断是否为目标节点（在数据清洗层会对目标节点的domain字段做出标记）
+        if item['domain'] != -1: # 不是目标节点
             domain: Node = None
             domain = cls.nodes_matcher.match(id=item['domain']).first()
             user: Node = None
-            if not cls.nodes_matcher.match(id=item['id']).exists() :
+            if not cls.nodes_matcher.match(id=item['id']).exists() : # 该节点是否已存在于图中
+                # 将item实体转换为节点
                 user = cls.convert_item_to_node('User',item)
                 cls.graph.create(user)
-            else:
+            else: #若 已存在则读取节点
                 user = cls.nodes_matcher.match(id=item['id']).first()
+            # 建立关注关系
             # 爬取粉丝列表时使用
-            # user_to_domain = Relationship(user, '关注', domain)
+            user_to_domain = Relationship(user, '关注', domain)
             # 爬取关注列表时使用
-            domain_to_user = Relationship(domain, '关注', user)
-            cls.graph.create(domain_to_user)
-        else:
+            # domain_to_user = Relationship(domain, '关注', user)
+            cls.graph.create(user_to_domain)
+        else: # 是目标节点
             target: Node = None
             if not cls.nodes_matcher.match(id=item['id']).exists():
                 target = cls.convert_item_to_node('Target',item)
                 cls.graph.create(target)
+            # 建立主节点到目标节点的关注关系
             main_to_target = Relationship(cls.main_node, '关注', target)
             cls.graph.create(main_to_target)

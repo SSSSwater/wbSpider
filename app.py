@@ -1,6 +1,5 @@
 import base64
 import os
-import struct
 import subprocess
 import threading
 import uuid
@@ -149,8 +148,6 @@ def get_spider_status():
         return jsonify({'status': 'none'})
     else:
         status = RedisQueueManager.get_status()
-
-
         if status == "1":
             return jsonify({'status': '爬虫启动中', 'data': RedisQueueManager.get_status()})
         elif status == "2":
