@@ -63,10 +63,11 @@ class NeoUtil:
                 user = cls.nodes_matcher.match(id=item['id']).first()
             # 建立关注关系
             # 爬取粉丝列表时使用
-            user_to_domain = Relationship(user, '关注', domain)
+            # user_to_domain = Relationship(user, '关注', domain)
             # 爬取关注列表时使用
-            # domain_to_user = Relationship(domain, '关注', user)
-            cls.graph.create(user_to_domain)
+            print(item['domain'])
+            domain_to_user = Relationship(domain, '关注', user)
+            cls.graph.create(domain_to_user)
         else: # 是目标节点
             target: Node = None
             if not cls.nodes_matcher.match(id=item['id']).exists():

@@ -72,4 +72,4 @@ def get_info(id):
     return  response
 
 # test_mobile(10,5136362277)
-print(get_following_all_only_uid(2607381560))
+# print(get_following_all_only_uid(2607381560))

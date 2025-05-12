@@ -374,7 +374,7 @@ def show_cluster_figure():
     ana = Analysis()
     ana.procT_show_node_figure()
 
-start = time.time()
-print(get_same_cluster_nodes())
-print(time.time() - start)
+# start = time.time()
+# print(get_same_cluster_nodes())
+# print(time.time() - start)
 # show_cluster_figure()
