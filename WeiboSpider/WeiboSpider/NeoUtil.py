@@ -64,8 +64,8 @@ class NeoUtil:
             # 建立关注关系
             # 爬取粉丝列表时使用
             # user_to_domain = Relationship(user, '关注', domain)
+            # cls.graph.create(user_to_domain)
             # 爬取关注列表时使用
-            print(item['domain'])
             domain_to_user = Relationship(domain, '关注', user)
             cls.graph.create(domain_to_user)
         else: # 是目标节点

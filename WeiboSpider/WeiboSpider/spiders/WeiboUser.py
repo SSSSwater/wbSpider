@@ -1,5 +1,6 @@
 import copy
 import json
+import random
 from copy import deepcopy
 
 import scrapy
@@ -18,40 +19,24 @@ from scrapy.utils.response import response_status_message
 import time
 from scrapy import signals
 from scrapy.signalmanager import dispatcher
+from ..CommonUtils import *
 
 class WeiboSpider(RedisSpider):
     name = "WeiboUser"
     # allowed_domains = ["weibo.com"]
     first_get_sample = "https://www.weibo.com/ajax/friendships/friends?page={}&uid={}"
+    # pc端爬取关注
     url_sample = "https://www.weibo.com/ajax/friendships/friends?page={}&uid={}"
+    # app端爬取粉丝
     # url_sample = "https://m.weibo.cn/c/fans/followers?page={}&uid={}&cursor=-1&count=20"
     current_page = 1
     redis_key = 'db:start_urls'
     ua = UserAgent()
     MAX_DEPTH = 1  # 设置最大爬取深度
-    FANS_THRESHOLD = 5000000  # 粉丝数阈值
-    FRIENDS_THRESHOLD = 300  # 粉丝数阈值
-    MIN_VALID_USERS = 5  # 每页最少需要有多少个有效用户才继续爬取
-
-    # 并发设置
-    custom_settings = {
-        'CONCURRENT_REQUESTS': 32,  # 全局并发请求数
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 8,  # 每个域名的并发请求数
-        'CONCURRENT_REQUESTS_PER_IP': 8,  # 每个IP的并发请求数
-        'DOWNLOAD_DELAY': 0.5,  # 下载延迟
-        'RANDOMIZE_DOWNLOAD_DELAY': True,  # 随机化下载延迟
-        'COOKIES_ENABLED': False,  # 禁用cookies
-        'RETRY_ENABLED': True,  # 启用重试
-        'RETRY_TIMES': 3,  # 重试次数
-        'RETRY_HTTP_CODES': [500, 502, 503, 504, 522, 524, 408, 429],  # 需要重试的HTTP状态码
-        'DOWNLOAD_TIMEOUT': 15,  # 下载超时时间
-        'REDIRECT_ENABLED': True,  # 允许重定向
-        'REDIRECT_MAX_TIMES': 5,  # 最大重定向次数
-        'AJAXCRAWL_ENABLED': True,  # 启用AJAX爬取
-        'REACTOR_THREADPOOL_MAXSIZE': 20,  # 线程池大小
-        'DNS_TIMEOUT': 10,  # DNS超时时间
-        'LOG_LEVEL': 'INFO',  # 日志级别
-    }
+    FANS_THRESHOLD = 2000000  # 粉丝数阈值
+    FRIENDS_THRESHOLD = 150  # 关注数阈值
+    SELECT_USER_PROBABILITY = 0.8  # 每个符合要求的用户有多少概率爬取
+    SKIP_PAGE_PROBABILITY = 0.2  # 有多少概率跳过下一个关注页不爬取
 
     # 配置日志
     configure_logging(install_root_handler=False)
@@ -64,10 +49,12 @@ class WeiboSpider(RedisSpider):
         level=logging.INFO
     )
 
-    def __init__(self, user_id=None, *args, **kwargs):
+
+    def __init__(self, user_id=None, target_num=None, *args, **kwargs):
         super(WeiboSpider, self).__init__(*args, **kwargs)
         RedisQueueManager.clear_task()
         self.user_id = user_id if user_id else 6593199887  # 默认值
+        self.target_num = target_num if target_num else 10  # 默认值
         self.stats = {}
         self.start_time = time.time()
         self.request_count = 0
@@ -118,118 +105,126 @@ class WeiboSpider(RedisSpider):
         # 获取初始用户列表
         start_list = get_following_all(self.user_id)
         logging.info(f"获取到 {len(start_list)} 个初始用户")
-        
-        # 批量添加用户到Neo4j
+        selected_start = try_sample_from_list(start_list, self.target_num)
 
-        for u in start_list:
+        # 批量添加用户到Neo4j
+        for u in selected_start:
             NeoUtil.try_add_node(u)
+            logging.info(f"添加用户 {u['name']}({u['id']}) 的关注列表")
+            yield scrapy.Request(
+                url=self.url_sample.format(1, u['id']),
+                callback=self.parse,
+                meta={
+                    'page': 1,
+                    'domain': u['id'],
+                    'dapth': 1,
+                    'current_user': u['id'],
+                    'priority': 100,
+                    'retry_times': 0
+                },
+                priority=100,
+                dont_filter=True
+            )
         RedisQueueManager.set_status(3)
-        batch_size = 100
-        for i in range(0, len(start_list), batch_size):
-            batch = start_list[i:i + batch_size]
-            for u in batch:
-                logging.info(f"开始爬取用户 {u['name']}({u['id']}) 的粉丝列表")
-                yield scrapy.Request(
-                    url=self.url_sample.format(1, u['id']),
-                    callback=self.parse,
-                    meta=deepcopy({
-                        'page': 1,
-                        'domain': u['id'],
-                        'depth': 1,
-                        'current_user': u['id'],
-                        'priority': 10,
-                        'retry_times': 0
-                    }),
-                    priority=10,
-                    dont_filter=True
-                )
+        # batch_size = 100
+        # for i in range(0, len(start_list), batch_size):
+        #     batch = start_list[i:i + batch_size]
+        #     for u in batch:
+        #
 
     def parse(self, response):
         """解析粉丝列表页面"""
         try:
             datas = json.loads(response.text)
         except json.JSONDecodeError:
-            logging.error(f"JSON解析错误: {response.status} - {response.url}")
+            logging.error(f"JSON解析错误，可能cookies已失效: {response.status} - {response.url}")
             return
         except Exception as e:
-            logging.error(f"解析错误: {str(e)} - {response.url}")
+            logging.error(f"解析错误，未知原因: {str(e)} - {response.url}")
             return
 
         if datas['ok'] != 1:
-            logging.error(f"API返回错误，可能用户禁止了非关注用户访问关注列表: {response.status} - {response.url}")
+            logging.error(f"API返回错误，可能用户禁止了非关注用户访问粉丝列表: {response.status} - {response.url}")
             return
         try:
+            # 爬取粉丝列表时使用
+            # users = datas['data']['list']['users']
+            # 爬取关注列表时使用
             users = datas['users']
         except KeyError:
             logging.error(f"数据格式错误: {response.url}")
             return
 
-        current_user = deepcopy(response.meta['current_user'])
-        current_page = deepcopy(response.meta['page'])
-        current_depth = deepcopy(response.meta['depth'])
-        current_domain = deepcopy(response.meta['domain'])
-        current_priority = deepcopy(response.meta['priority'])
+        current_user = response.meta['current_user']
+        current_page = response.meta['page']
+        current_depth = response.meta['dapth']
+        current_domain = response.meta['domain']
+        current_priority = response.meta['priority']
         
-        logging.info(f"正在爬取用户 {current_user} 的第 {current_page} 页粉丝列表\n(page:{current_page},depth:{current_depth},priority:{current_priority})\n")
+        logging.info(f"正在爬取用户 {current_user} 的第 {current_page} 页关注列表")
 
         if not users:
-            logging.info(f"用户 {current_user} 的第 {current_page} 页没有更多粉丝\n(page:{current_page},depth:{current_depth},priority:{current_priority})\n")
+            logging.info(f"用户 {current_user} 的第 {current_page} 页没有更多关注")
             return
 
-        # 统计当前页面有效用户数量
+        add_queue = True
+        if current_depth > self.MAX_DEPTH:
+            logging.info(f"用户 {current_user} 关注页深度 {current_depth} 达到上限，不将该页用户加入队列)")
+            add_queue = False
+
         next_page = False
         for user in users:
             next_page = True
             if user['followers_count'] < self.FANS_THRESHOLD:
-                logging.info(f"用户 {user['name']}({user['id']}) 粉丝数 {user['followers_count']} 小于阈值，跳过\n")
                 continue
 
             # 保存用户数据到图数据库
             yield json2item(user, current_domain)
 
             if user['friends_count'] > self.FANS_THRESHOLD:
-                logging.info(f"用户 {user['name']}({user['id']}) 关注数 {user['friends_count']} 大于阈值，跳过\n")
                 continue
-
-            if current_depth > self.MAX_DEPTH:
-                logging.info(f"用户 {user['name']}({user['id']}) 关注页深度 {current_depth} 达到上限，不爬取\n(page:{current_page},depth:{current_depth},priority:{current_priority})\n")
+            if not rand_probability(self.SELECT_USER_PROBABILITY):
                 continue
-
             # 如果条件都允许，创建新的爬取任务
-            logging.info(f"将用户 {user['name']}({user['id']}) 加入队列(粉丝数:{user['followers_count']})\n(page:{current_page},depth:{current_depth},priority:{current_priority})\n")
-            yield scrapy.Request(
-                url=self.url_sample.format(1, user['id']),
-                meta=deepcopy({
-                    'page': 1,
-                    'domain': user['id'],
-                    'depth': current_depth + 1,
-                    'current_user': user['id'],
-                    'priority': 10,
-                    'retry_times': 0
-                }),
-                callback=self.parse,
-                priority=10
-            )
+            if add_queue:
+                logging.info(f"将用户 {user['name']}({user['id']}) 加入队列")
+                yield scrapy.Request(
+                    url=self.url_sample.format(1, user['id']),
+                    meta={
+                        'page': 1,
+                        'domain': user['id'],
+                        'dapth': current_depth + 1,
+                        'current_user': user['id'],
+                        'priority': 100 - (current_depth - 1) * 20,
+                        'retry_times': 0
+                    },
+                    callback=self.parse,
+                    priority= 100 - (current_depth - 1) * 20
+                )
 
         # 判断是否继续爬取下一页
         if next_page:
-            logging.info(f"用户 {current_user} 的第 {current_page} 页关注数已爬取完毕，继续爬取下一页\n(page:{current_page},depth:{current_depth},priority:{current_priority})\n")
+            page_add = 1
+            f = True
+            while(f):
+                if rand_probability(self.SKIP_PAGE_PROBABILITY):
+                    page_add += 1
+                else:
+                    f = False
+            logging.info(f"用户 {current_user} 的第 {current_page} 页关注已爬取完毕，继续往后爬取{page_add}页")
             yield scrapy.Request(
                 url=self.url_sample.format(current_page + 1, current_user),
-                meta=deepcopy({
-                    'page': current_page + 1,
+                meta={
+                    'page': current_page + page_add,
                     'domain': current_user,
-                    'depth': current_depth,
+                    'dapth': current_depth,
                     'current_user': current_user,
-                    'priority': 20,
+                    'priority': 100 - (current_depth - 1) * 20 + current_page,
                     'retry_times': 0
-                }),
+                },
                 callback=self.parse,
-                priority=20
+                priority= 100 - (current_depth - 1) * 20 + current_page,
             )
-        # else:
-        #     logging.info(f"用户 {current_user} 的第 {current_page} 页最后一个粉丝数未超过阈值，停止爬取")
-
     def closed(self, reason):
         """爬虫关闭时的处理"""
         end_time = time.time()

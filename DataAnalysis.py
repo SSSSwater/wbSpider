@@ -1,3 +1,4 @@
+import random
 import time
 
 import matplotlib.pyplot as plt
@@ -299,7 +300,7 @@ class Analysis:
         'user_cluster',
         {
         nodeProperty: 'refer_vector',
-        k: 4,
+        k: 8,
         randomSeed: 42 ,            // 固定随机种子
         writeProperty: 'clusterId'  // 结果写入属性
         }
@@ -349,7 +350,7 @@ class Analysis:
         plt.show()
 
 
-def get_same_cluster_nodes():
+def get_same_cluster_nodes(max_num=10):
     """
     获取同聚类节点的主函数
     Returns:
@@ -363,8 +364,11 @@ def get_same_cluster_nodes():
     ana.proc5_kmeans_analysis()
     ana.proc6_del_project()
     users = ana.proc7_get_nodes_in_same_cluster()
+    if max_num < len(users):
+        return random.sample(users,max_num)
+    else:
+        return users
     # ana.procT_show_node_figure()
-    return users
 
 
 def show_cluster_figure():

@@ -254,7 +254,7 @@ def get_cluster_data_api():
     """获取同聚类节点数据"""
     try:
         # 从Neo4j获取聚类数据
-        cluster_nodes = DataAnalysis.get_same_cluster_nodes()
+        cluster_nodes = DataAnalysis.get_same_cluster_nodes(15)
         if cluster_nodes:
             return jsonify(cluster_nodes)
         return jsonify(None)

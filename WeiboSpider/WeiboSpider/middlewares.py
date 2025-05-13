@@ -11,7 +11,7 @@ from scrapy import signals
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
-
+from .RequestUtil import get_random_IP
 
 class WeibospiderSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
@@ -133,3 +133,9 @@ class ErrorLoggerMiddleware(RetryMiddleware):
         # 将错误数据写入文件（追加模式）
         with open("error_logs.jsonl", "a") as f:
             f.write(json.dumps(error_data) + "\n")
+
+class ProxyMiddleware:
+    def process_request(self, request, spider):
+        # 随机选择一个代理IP
+        proxy = get_random_IP()
+        request.meta['proxy'] = proxy
